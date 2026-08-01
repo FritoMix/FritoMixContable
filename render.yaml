@@ -1,0 +1,31 @@
+# Render Blueprint — Backend FritoMix ERP (Spring Boot)
+services:
+  - type: web
+    name: fritomix-erp
+    runtime: java
+    rootDir: erp
+    plan: free
+    buildCommand: ./mvnw clean package -DskipTests
+    startCommand: java -jar target/erp-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_URL
+        value: jdbc:postgresql://aws-0-ca-central-1.pooler.supabase.com:5432/postgres?user=postgres.nphasytrfbszgxyyfjzc&ssl=true&sslmode=require
+      - key: DB_USERNAME
+        value: postgres.nphasytrfbszgxyyfjzc
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        value: uiitDhPY8NyEuQl8Ak7yw5SuascSN+vAnQZy83C2GHev9uTjVgsjUFaNYzzbAe5/x5xnZkV70VHFkSh8rg6/Ug==
+      - key: CORS_ALLOWED_ORIGINS
+        value: http://localhost:4200,https://*.vercel.app
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
