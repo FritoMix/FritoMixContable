@@ -1,9 +1,14 @@
 logging:
   file:
-    name: /var/log/erp/erp.log
+    name: /tmp/erp.log
   level:
     com.fritomix: INFO
     org.springframework: WARN
+
+management:
+  health:
+    mail:
+      enabled: false
 
 spring:
 
@@ -27,10 +32,10 @@ spring:
     locations: classpath:db/migration
 
   mail:
-    host: ${MAIL_HOST}
+    host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
