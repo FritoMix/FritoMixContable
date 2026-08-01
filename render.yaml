@@ -2,11 +2,10 @@
 services:
   - type: web
     name: fritomix-erp
-    runtime: java
+    runtime: docker
     rootDir: erp
     plan: free
-    buildCommand: ./mvnw clean package -DskipTests
-    startCommand: java -jar target/erp-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
