@@ -53,4 +53,12 @@ public class RefreshTokenHandler {
 
         return new LoginHandler.TokenResult(user, newAccessToken, newRefreshToken);
     }
+
+    @Transactional
+    public void revoke(String token) {
+        refreshTokenRepository.findByToken(token).ifPresent(storedToken -> {
+            storedToken.setRevoked(true);
+            refreshTokenRepository.save(storedToken);
+        });
+    }
 }

@@ -3,6 +3,7 @@ package com.fritomix.erp.modules.auth.application.service;
 import com.fritomix.erp.modules.auth.application.command.LoginCommand;
 import com.fritomix.erp.modules.auth.application.dto.response.AuthenticationResponse;
 import com.fritomix.erp.modules.auth.application.handler.LoginHandler;
+import com.fritomix.erp.modules.auth.application.handler.RefreshTokenHandler;
 import com.fritomix.erp.modules.auth.application.mapper.AuthenticationMapper;
 import com.fritomix.erp.modules.auth.domain.entity.Role;
 import com.fritomix.erp.modules.auth.domain.entity.User;
@@ -28,6 +29,9 @@ class AuthenticationServiceTest {
 
     @Mock
     private LoginHandler loginHandler;
+
+    @Mock
+    private RefreshTokenHandler refreshTokenHandler;
 
     @Mock
     private AuthenticationMapper mapper;
@@ -83,5 +87,12 @@ class AuthenticationServiceTest {
         when(loginHandler.handle(any())).thenThrow(new UserDisabledException("La cuenta de usuario está deshabilitada"));
 
         assertThrows(UserDisabledException.class, () -> authenticationService.login(validCommand));
+    }
+
+    @Test
+    void revoke_shouldDelegateToRefreshTokenHandler() {
+        authenticationService.revoke("refresh-token");
+
+        verify(refreshTokenHandler).revoke("refresh-token");
     }
 }

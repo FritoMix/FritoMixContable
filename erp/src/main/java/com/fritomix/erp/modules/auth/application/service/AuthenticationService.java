@@ -26,4 +26,8 @@ public class AuthenticationService {
         LoginHandler.TokenResult result = refreshTokenHandler.handle(command);
         return mapper.toAuthenticationResponse(result.accessToken(), result.refreshToken(), result.user());
     }
+
+    public void revoke(String token) {
+        refreshTokenHandler.revoke(token);
+    }
 }
