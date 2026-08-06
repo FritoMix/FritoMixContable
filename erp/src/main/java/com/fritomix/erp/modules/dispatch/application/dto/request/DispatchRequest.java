@@ -12,8 +12,12 @@ import java.util.List;
 
 @Builder
 public record DispatchRequest(
-        @NotNull
+        @Size(max = 20)
+        String tipoPedido,
+
         Long orderId,
+
+        List<Long> orderIds,
 
         @NotNull
         Long driverId,
@@ -47,6 +51,10 @@ public record DispatchRequest(
 
             BigDecimal delivered,
 
-            String observations
+            String observations,
+
+            String detalleProducto,
+
+            String lote
     ) {}
 }

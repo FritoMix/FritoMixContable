@@ -19,6 +19,12 @@ public class OrderController {
 
     private final OrderService orderService;
 
+    @GetMapping("/next-number")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ORDERS_VIEW','PERMISSION_ORDERS_CREATE')")
+    public ResponseEntity<String> nextOrderNumber() {
+        return ResponseEntity.ok(orderService.generateNextOrderNumber());
+    }
+
     @GetMapping
     @PreAuthorize("hasAuthority('PERMISSION_ORDERS_VIEW')")
     public ResponseEntity<List<OrderResponse>> findAll() {
@@ -41,6 +47,12 @@ public class OrderController {
     @PreAuthorize("hasAuthority('PERMISSION_ORDERS_EDIT')")
     public ResponseEntity<OrderResponse> update(@PathVariable Long id, @Valid @RequestBody OrderRequest request) {
         return ResponseEntity.ok(orderService.update(id, request));
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ORDERS_EDIT','PERMISSION_ORDERS_CHANGE_STATUS')")
+    public ResponseEntity<OrderResponse> updateStatus(@PathVariable Long id, @RequestParam String status) {
+        return ResponseEntity.ok(orderService.updateStatus(id, status));
     }
 
     @DeleteMapping("/{id}")
