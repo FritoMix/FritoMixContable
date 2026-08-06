@@ -25,6 +25,7 @@ public class ProductMapper {
                 .pesoUnidad(product.getPesoUnidad())
                 .dimension(product.getDimension())
                 .pesoTotalCargue(product.getPesoTotalCargue())
+                .stock(product.getStock())
                 .createdAt(product.getCreatedAt())
                 .build();
     }

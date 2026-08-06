@@ -23,9 +23,18 @@ public class Dispatch {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false, unique = true)
-    private Order order;
+    @Column(name = "tipo_pedido", length = 20)
+    @Builder.Default
+    private String tipoPedido = "pedido_unico";
+
+    @ManyToMany
+    @JoinTable(
+            name = "dispatch_orders",
+            joinColumns = @JoinColumn(name = "dispatch_id"),
+            inverseJoinColumns = @JoinColumn(name = "order_id")
+    )
+    @Builder.Default
+    private List<Order> orders = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "driver_id", nullable = false)
@@ -44,11 +53,18 @@ public class Dispatch {
     @Column(nullable = false, length = 30)
     private String status;
 
+    @Column(length = 20)
+    private String cumplimiento;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 
     @Column(name = "user_id")
     private Long userId;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

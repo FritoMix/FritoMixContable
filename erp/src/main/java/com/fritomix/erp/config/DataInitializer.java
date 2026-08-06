@@ -42,11 +42,7 @@ public class DataInitializer implements CommandLineRunner {
                     .build();
 
             userRepository.save(admin);
-            log.warn("============================================================");
-            log.warn("USUARIO ADMIN CREADO — CAMBIA ESTA CONTRASEÑA EN EL PRIMER LOGIN");
-            log.warn("Email: admin@fritomix.com");
-            log.warn("Password: {}", rawPassword);
-            log.warn("============================================================");
+
         }
     }
 }
