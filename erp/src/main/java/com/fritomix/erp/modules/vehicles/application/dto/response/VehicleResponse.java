@@ -8,10 +8,10 @@ import java.time.LocalDateTime;
 @Builder
 public record VehicleResponse(
         Long id,
-        String plate,
-        String brand,
-        String model,
+        String vehicleNumber,
+        String type,
         BigDecimal capacity,
+        BigDecimal dimension,
         Boolean active,
         LocalDateTime createdAt
 ) {

@@ -1,4 +1,4 @@
-package com.fritomix.erp.modules.vehicles.domain.entity;
+package com.fritomix.erp.modules.dispatch.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -7,33 +7,33 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "vehicles")
+@Table(name = "arrumes")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Vehicle {
+public class Arrume {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "vehicle_number", nullable = false, unique = true, length = 20)
-    private String vehicleNumber;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "dispatch_id", nullable = false)
+    private Dispatch dispatch;
 
-    @Column(nullable = false, length = 100)
-    private String type;
+    @Column(name = "num_arrume")
+    private Integer numArrume;
 
-    @Column(nullable = false, precision = 18, scale = 2)
-    private BigDecimal capacity;
+    @Column(name = "arrume_producto", length = 255)
+    private String arrumeProducto;
 
-    @Column(nullable = false, precision = 18, scale = 2)
-    private BigDecimal dimension;
+    @Column(precision = 18, scale = 2)
+    private BigDecimal cantidad;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private Boolean active = true;
+    @Column(length = 100)
+    private String lote;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

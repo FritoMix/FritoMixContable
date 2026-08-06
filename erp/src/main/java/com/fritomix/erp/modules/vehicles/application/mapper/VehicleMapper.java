@@ -10,10 +10,10 @@ public class VehicleMapper {
     public VehicleResponse toResponse(Vehicle vehicle) {
         return VehicleResponse.builder()
                 .id(vehicle.getId())
-                .plate(vehicle.getPlate())
-                .brand(vehicle.getBrand())
-                .model(vehicle.getModel())
+                .vehicleNumber(vehicle.getVehicleNumber())
+                .type(vehicle.getType())
                 .capacity(vehicle.getCapacity())
+                .dimension(vehicle.getDimension())
                 .active(vehicle.getActive())
                 .createdAt(vehicle.getCreatedAt())
                 .build();
