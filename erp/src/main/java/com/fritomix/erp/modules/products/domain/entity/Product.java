@@ -67,6 +67,14 @@ public class Product {
     @Column(name = "peso_total_cargue", precision = 18, scale = 4)
     private BigDecimal pesoTotalCargue;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer stock = 0;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

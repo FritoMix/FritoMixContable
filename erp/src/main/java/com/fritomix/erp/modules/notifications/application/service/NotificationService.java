@@ -2,6 +2,7 @@ package com.fritomix.erp.modules.notifications.application.service;
 
 import com.fritomix.erp.exception.ResourceNotFoundException;
 import com.fritomix.erp.modules.auth.domain.entity.User;
+import com.fritomix.erp.modules.auth.domain.enums.RoleType;
 import com.fritomix.erp.modules.auth.domain.repository.UserRepository;
 import com.fritomix.erp.modules.notifications.application.dto.request.NotificationRequest;
 import com.fritomix.erp.modules.notifications.application.dto.response.NotificationResponse;
@@ -9,6 +10,7 @@ import com.fritomix.erp.modules.notifications.domain.entity.Notification;
 import com.fritomix.erp.modules.notifications.domain.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -33,7 +35,7 @@ public class NotificationService {
         return notificationRepository.countByUserIdAndIsReadFalse(userId);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void create(NotificationRequest request) {
         User user = userRepository.findById(request.userId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id: " + request.userId()));
@@ -45,6 +47,23 @@ public class NotificationService {
                 .link(request.link())
                 .build();
         notificationRepository.save(notification);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void createForRoles(String title, String message, String type, String link, RoleType... roles) {
+        for (RoleType role : roles) {
+            List<User> users = userRepository.findByRoleName(role.name());
+            for (User user : users) {
+                Notification notification = Notification.builder()
+                        .user(user)
+                        .title(title)
+                        .message(message)
+                        .type(type != null ? type : "INFO")
+                        .link(link)
+                        .build();
+                notificationRepository.save(notification);
+            }
+        }
     }
 
     @Transactional

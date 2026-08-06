@@ -38,6 +38,12 @@ public class DispatchDetail {
     @Column(columnDefinition = "TEXT")
     private String observations;
 
+    @Column(name = "detalle_producto", columnDefinition = "TEXT")
+    private String detalleProducto;
+
+    @Column(length = 100)
+    private String lote;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

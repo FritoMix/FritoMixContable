@@ -3,14 +3,18 @@ package com.fritomix.erp.modules.dispatch.application.mapper;
 import com.fritomix.erp.modules.auth.domain.repository.UserRepository;
 import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse;
 import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse.DispatchDetailResponse;
+import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse.OrderInfo;
 import com.fritomix.erp.modules.dispatch.domain.entity.Dispatch;
 import com.fritomix.erp.modules.dispatch.domain.entity.DispatchDetail;
 import com.fritomix.erp.modules.drivers.domain.entity.Driver;
 import com.fritomix.erp.modules.orders.domain.entity.Order;
+import com.fritomix.erp.modules.orders.domain.entity.OrderDetail;
 import com.fritomix.erp.modules.vehicles.domain.entity.Vehicle;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,6 +29,40 @@ public class DispatchMapper {
         List<DispatchDetail> details = dispatch.getDetails();
         if (details == null) details = Collections.emptyList();
 
+        List<Order> orders = dispatch.getOrders();
+        if (orders == null) orders = Collections.emptyList();
+
+        List<OrderInfo> orderInfos = orders.stream()
+                .map(o -> OrderInfo.builder()
+                        .id(o.getId())
+                        .orderNumber(o.getOrderNumber())
+                        .clientName(o.getCustomer() != null ? o.getCustomer().getBusinessName() : null)
+                        .pesoTotalCargue(o.getPesoTotalCargue())
+                        .build())
+                .collect(Collectors.toList());
+
+        Order firstOrder = orders.isEmpty() ? null : orders.get(0);
+        BigDecimal pesoTotal = orders.stream()
+                .flatMap(o -> o.getDetails() == null ? Collections.<OrderDetail>emptyList().stream() : o.getDetails().stream())
+                .map(d -> {
+                    BigDecimal unitWeight = d.getProduct() != null && d.getProduct().getPesoUnidad() != null
+                            ? d.getProduct().getPesoUnidad()
+                            : BigDecimal.ZERO;
+                    return unitWeight.multiply(d.getQuantity() != null ? d.getQuantity() : BigDecimal.ZERO);
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalDimension = orders.stream()
+                .flatMap(o -> o.getDetails() == null ? Collections.<OrderDetail>emptyList().stream() : o.getDetails().stream())
+                .map(d -> {
+                    BigDecimal dim = d.getProduct() != null && d.getProduct().getDimension() != null
+                            ? d.getProduct().getDimension()
+                            : BigDecimal.ZERO;
+                    return dim.multiply(d.getQuantity() != null ? d.getQuantity() : BigDecimal.ZERO);
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+
         String dispatchUserName = null;
         if (dispatch.getUserId() != null) {
             dispatchUserName = userRepository.findById(dispatch.getUserId())
@@ -32,24 +70,28 @@ public class DispatchMapper {
                     .orElse(null);
         }
 
-        Order order = dispatch.getOrder();
         Driver driver = dispatch.getDriver();
         Vehicle vehicle = dispatch.getVehicle();
 
         DispatchResponse.DispatchResponseBuilder builder = DispatchResponse.builder()
                 .id(dispatch.getId())
                 .dispatchNumber(dispatch.getDispatchNumber())
+                .tipoPedido(dispatch.getTipoPedido())
+                .orders(orderInfos)
+                .pesoTotal(pesoTotal)
+                .totalDimension(totalDimension)
+                .pesoTotalCargue(pesoTotal)
                 .dispatchDate(dispatch.getDispatchDate())
                 .status(dispatch.getStatus())
+                .cumplimiento(dispatch.getCumplimiento())
                 .notes(dispatch.getNotes())
                 .dispatchUserName(dispatchUserName)
                 .details(details.stream().map(this::toDetailResponse).collect(Collectors.toList()))
                 .createdAt(dispatch.getCreatedAt());
 
-        if (order != null) {
-            builder.orderId(order.getId())
-                   .orderNumber(order.getOrderNumber())
-                   .pesoTotalCargue(order.getPesoTotalCargue());
+        if (firstOrder != null) {
+            builder.orderId(firstOrder.getId())
+                   .orderNumber(firstOrder.getOrderNumber());
         }
         if (driver != null) {
             builder.driverId(driver.getId())
@@ -71,7 +113,9 @@ public class DispatchMapper {
                 .id(detail.getId())
                 .quantity(detail.getQuantity())
                 .delivered(detail.getDelivered())
-                .observations(detail.getObservations());
+                .observations(detail.getObservations())
+                .detalleProducto(detail.getDetalleProducto())
+                .lote(detail.getLote());
 
         if (detail.getProduct() != null) {
             builder.productId(detail.getProduct().getId())
