@@ -79,7 +79,7 @@ class DispatchServiceTest {
 
         order = Order.builder().id(1L).orderNumber("ORD-001").build();
         driver = Driver.builder().id(1L).name("Test Driver").build();
-        vehicle = Vehicle.builder().id(1L).plate("ABC-123").build();
+        vehicle = Vehicle.builder().id(1L).vehicleNumber("VEH-001").build();
 
         DispatchDetail detail = DispatchDetail.builder()
                 .id(1L)

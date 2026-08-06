@@ -51,7 +51,7 @@ public class ReportsController {
     @GetMapping("/logistica")
     @PreAuthorize("hasAuthority('PERMISSION_REPORTS_VIEW')")
     public ResponseEntity<List<ReportsDTO.DispatchReportDTO>> getLogistica() {
-        return ResponseEntity.ok(reportsService.getListoCargueDispatches());
+        return ResponseEntity.ok(reportsService.getDespachados());
     }
 
     @GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
@@ -87,7 +87,7 @@ public class ReportsController {
 
         addHeader(document, reportType);
         if ("LOGISTICA".equals(reportType)) {
-            renderDispatchTable(document, reportsService.getListoCargueDispatches());
+            renderDispatchTable(document, reportsService.getDespachados());
         } else {
             renderTable(document, rows);
         }
@@ -144,7 +144,7 @@ public class ReportsController {
             case "APROBADO" -> "Reporte de Pedidos Aprobados";
             case "PENDIENTE" -> "Reporte de Pedidos Pendientes";
             case "CANCELADO" -> "Reporte de Pedidos Cancelados";
-            default -> "Reporte de Logística — Despachos Listos para Despacho";
+            default -> "Reporte de Logística — Despachos Realizados";
         };
 
         titleCell.addElement(new Paragraph("FRITOMIX S.A.S.", companyFont));
@@ -227,7 +227,7 @@ public class ReportsController {
             table.addCell(styledCell(r.orderNumbers() != null ? String.join(", ", r.orderNumbers()) : "—", cellFont, bg, Element.ALIGN_LEFT));
             table.addCell(styledCell(r.customerNames() != null ? String.join(", ", r.customerNames()) : "—", cellFont, bg, Element.ALIGN_LEFT));
             table.addCell(styledCell(r.driverName() != null ? r.driverName() : "—", cellFont, bg, Element.ALIGN_LEFT));
-            table.addCell(styledCell(r.vehiclePlate() != null ? r.vehiclePlate() : "—", cellFont, bg, Element.ALIGN_CENTER));
+            table.addCell(styledCell(r.vehicleNumber() != null ? r.vehicleNumber() : "—", cellFont, bg, Element.ALIGN_CENTER));
             table.addCell(styledCell(r.dispatchDate() != null ? r.dispatchDate().format(DATE_FMT) : "—", cellFont, bg, Element.ALIGN_CENTER));
             table.addCell(styledCell(formatWeight(r.pesoTotal()), cellFont, bg, Element.ALIGN_RIGHT));
         }

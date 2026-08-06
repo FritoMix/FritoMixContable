@@ -38,7 +38,10 @@ public record DispatchRequest(
         String notes,
 
         @Valid
-        List<DispatchDetailRequest> details
+        List<DispatchDetailRequest> details,
+
+        @Valid
+        List<ArrumeRequest> arrumes
 ) {
 
     @Builder
@@ -54,6 +57,17 @@ public record DispatchRequest(
             String observations,
 
             String detalleProducto,
+
+            String lote
+    ) {}
+
+    @Builder
+    public record ArrumeRequest(
+            Integer numArrume,
+
+            String arrumeProducto,
+
+            BigDecimal cantidad,
 
             String lote
     ) {}
