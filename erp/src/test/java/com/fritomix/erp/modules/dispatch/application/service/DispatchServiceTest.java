@@ -1,5 +1,6 @@
 package com.fritomix.erp.modules.dispatch.application.service;
 
+import com.fritomix.erp.exception.PedidoYaDespachadoException;
 import com.fritomix.erp.modules.dispatch.application.dto.request.DispatchRequest;
 import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse;
 import com.fritomix.erp.modules.dispatch.application.mapper.DispatchMapper;
@@ -30,6 +31,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -72,7 +75,7 @@ class DispatchServiceTest {
     @BeforeEach
     void setUp() {
         Category category = Category.builder().id(1L).name("Test").build();
-        product = Product.builder().id(1L).code("PROD-001").name("Test Product").category(category).unit("CAJA").build();
+        product = Product.builder().id(1L).code("PROD-001").name("Test Product").category(category).unit("CAJA").stock(100).build();
 
         order = Order.builder().id(1L).orderNumber("ORD-001").build();
         driver = Driver.builder().id(1L).name("Test Driver").build();
@@ -87,11 +90,11 @@ class DispatchServiceTest {
 
         dispatch = Dispatch.builder()
                 .id(1L)
-                .order(order)
+                .orders(List.of(order))
                 .driver(driver)
                 .vehicle(vehicle)
                 .dispatchNumber("DES-001")
-                .status("CONFIRMADO")
+                .status("LISTO_CARGUE")
                 .details(List.of(detail))
                 .build();
 
@@ -100,7 +103,7 @@ class DispatchServiceTest {
                 .driverId(1L)
                 .vehicleId(1L)
                 .dispatchNumber("DES-001")
-                .status("CONFIRMADO")
+                .status("LISTO_CARGUE")
                 .details(List.of(
                         DispatchRequest.DispatchDetailRequest.builder()
                                 .productId(1L)
@@ -113,7 +116,8 @@ class DispatchServiceTest {
     @Test
     void create_shouldSucceed() {
         when(dispatchRepository.existsByDispatchNumber("DES-001")).thenReturn(false);
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.findAllById(List.of(1L))).thenReturn(List.of(order));
+        when(dispatchRepository.findActiveByOrderId(eq(1L), anyCollection())).thenReturn(List.of());
         when(driverRepository.findById(1L)).thenReturn(Optional.of(driver));
         when(vehicleRepository.findById(1L)).thenReturn(Optional.of(vehicle));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
@@ -132,7 +136,17 @@ class DispatchServiceTest {
         when(dispatchRepository.existsByDispatchNumber("DES-001")).thenReturn(true);
 
         assertThrows(IllegalArgumentException.class, () -> dispatchService.create(validRequest));
-        verify(orderRepository, never()).findById(any());
+        verify(orderRepository, never()).findAllById(any());
+    }
+
+    @Test
+    void create_shouldThrowWhenOrderAlreadyHasActiveDispatch() {
+        when(dispatchRepository.existsByDispatchNumber("DES-001")).thenReturn(false);
+        when(orderRepository.findAllById(List.of(1L))).thenReturn(List.of(order));
+        when(dispatchRepository.findActiveByOrderId(eq(1L), anyCollection())).thenReturn(List.of(dispatch));
+
+        assertThrows(PedidoYaDespachadoException.class, () -> dispatchService.create(validRequest));
+        verify(driverRepository, never()).findById(any());
     }
 
     @Test
@@ -140,9 +154,9 @@ class DispatchServiceTest {
         when(dispatchRepository.findById(1L)).thenReturn(Optional.of(dispatch));
         when(dispatchRepository.save(any(Dispatch.class))).thenReturn(dispatch);
         when(mapper.toResponse(any(Dispatch.class))).thenReturn(
-                DispatchResponse.builder().id(1L).dispatchNumber("DES-001").status("CONFIRMADO").build());
+                DispatchResponse.builder().id(1L).dispatchNumber("DES-001").status("DESPACHADO").build());
 
-        DispatchResponse response = dispatchService.updateStatus(1L, "CONFIRMADO");
+        DispatchResponse response = dispatchService.updateStatus(1L, "DESPACHADO");
 
         assertNotNull(response);
     }

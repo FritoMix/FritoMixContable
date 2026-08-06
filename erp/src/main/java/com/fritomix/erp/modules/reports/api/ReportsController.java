@@ -10,6 +10,7 @@ import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfWriter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,172 +21,230 @@ import org.springframework.web.bind.annotation.*;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
-import java.text.NumberFormat;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/v1/reports")
 @RequiredArgsConstructor
 public class ReportsController {
 
-    private static final java.util.Set<String> VALID_TYPES = java.util.Set.of("ventas", "clientes", "productos");
-    private static final java.util.Set<String> VALID_PERIODS = java.util.Set.of("hoy", "semana", "mes", "trimestre", "ano");
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    private static final Color HEADER_BG = new Color(7, 25, 56);
+    private static final List<String> VALID_STATUSES =
+            List.of("APROBADO", "PENDIENTE", "CANCELADO");
 
     private final ReportsService reportsService;
     private final NotificationService notificationService;
 
-    @GetMapping("/kpis")
+    @GetMapping("/orders")
     @PreAuthorize("hasAuthority('PERMISSION_REPORTS_VIEW')")
-    public ResponseEntity<ReportsDTO.KPIResponse> getKPIs(@RequestParam(defaultValue = "mes") String period) {
-        if (!VALID_PERIODS.contains(period)) {
-            return ResponseEntity.badRequest().build();
+    public ResponseEntity<?> getOrders(@RequestParam String status) {
+        if (!VALID_STATUSES.contains(status)) {
+            return ResponseEntity.badRequest().body("Estado inválido. Valores válidos: " + VALID_STATUSES);
         }
-        return ResponseEntity.ok(reportsService.getKPIs(period));
+        return ResponseEntity.ok(reportsService.getOrdersByStatus(status));
     }
 
-    @GetMapping("/top-products")
+    @GetMapping("/logistica")
     @PreAuthorize("hasAuthority('PERMISSION_REPORTS_VIEW')")
-    public ResponseEntity<List<ReportsDTO.TopProduct>> getTopProducts(@RequestParam(defaultValue = "mes") String period) {
-        if (!VALID_PERIODS.contains(period)) {
-            return ResponseEntity.badRequest().build();
-        }
-        return ResponseEntity.ok(reportsService.getTopProducts(period));
-    }
-
-    @GetMapping("/top-clients")
-    @PreAuthorize("hasAuthority('PERMISSION_REPORTS_VIEW')")
-    public ResponseEntity<List<ReportsDTO.TopClient>> getTopClients(@RequestParam(defaultValue = "mes") String period) {
-        if (!VALID_PERIODS.contains(period)) {
-            return ResponseEntity.badRequest().build();
-        }
-        return ResponseEntity.ok(reportsService.getTopClients(period));
+    public ResponseEntity<List<ReportsDTO.DispatchReportDTO>> getLogistica() {
+        return ResponseEntity.ok(reportsService.getListoCargueDispatches());
     }
 
     @GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     @PreAuthorize("hasAuthority('PERMISSION_REPORTS_VIEW')")
-    public void downloadPdf(@RequestParam(defaultValue = "ventas") String type,
-                            @RequestParam(defaultValue = "mes") String period,
+    public void downloadPdf(@RequestParam(defaultValue = "logistica") String type,
                             HttpServletResponse response) throws Exception {
-        if (!VALID_TYPES.contains(type) || !VALID_PERIODS.contains(period)) {
+        String reportType = switch (type) {
+            case "aprobados" -> "APROBADO";
+            case "pendientes" -> "PENDIENTE";
+            case "cancelados" -> "CANCELADO";
+            case "logistica" -> "LOGISTICA";
+            default -> null;
+        };
+
+        if (reportType == null) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             response.setContentType(MediaType.TEXT_PLAIN_VALUE);
-            response.getWriter().write("Tipo '" + type + "' o período '" + period + "' inválido. Tipos válidos: " + VALID_TYPES + ". Períodos: " + VALID_PERIODS + ".");
+            response.getWriter().write("Tipo inválido. Valores válidos: aprobados, pendientes, cancelados, logistica.");
             return;
         }
+
+        List<ReportsDTO.OrderReportDTO> rows;
+        if ("LOGISTICA".equals(reportType)) {
+            rows = null;
+        } else {
+            rows = reportsService.getOrdersByStatus(reportType);
+        }
+
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         Document document = new Document(PageSize.A4);
         PdfWriter.getInstance(document, baos);
         document.open();
 
-        Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Color.BLACK);
-        Font subtitleFont = FontFactory.getFont(FontFactory.HELVETICA, 10, Color.DARK_GRAY);
-        Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Color.WHITE);
-        Font cellFont = FontFactory.getFont(FontFactory.HELVETICA, 9, Color.BLACK);
-
-        String periodLabel = switch (period) {
-            case "hoy" -> "Hoy";
-            case "semana" -> "Semana actual";
-            case "mes" -> "Mes actual";
-            case "trimestre" -> "Trimestre";
-            case "ano" -> "Año";
-            default -> period;
-        };
-
-        document.add(new Paragraph("FRITOMIX S.A.S.", titleFont));
-        document.add(new Paragraph("Reporte de " + switch (type) {
-            case "ventas" -> "Ventas";
-            case "clientes" -> "Clientes";
-            case "productos" -> "Productos";
-            default -> type;
-        } + " — Periodo: " + periodLabel, subtitleFont));
-        document.add(new Paragraph("Generado: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), subtitleFont));
-        document.add(Chunk.NEWLINE);
-
-        if ("clientes".equals(type)) {
-            renderClientReport(document, period, headerFont, cellFont);
+        addHeader(document, reportType);
+        if ("LOGISTICA".equals(reportType)) {
+            renderDispatchTable(document, reportsService.getListoCargueDispatches());
         } else {
-            renderProductReport(document, period, headerFont, cellFont);
+            renderTable(document, rows);
         }
-
+        document.addTitle("Reporte - " + reportType);
         document.close();
 
         try {
             var auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
-                Long userId = userDetails.getUser().getId();
                 notificationService.create(NotificationRequest.builder()
-                        .userId(userId)
+                        .userId(userDetails.getUser().getId())
                         .title("Reporte generado")
-                        .message("Se generó el reporte PDF de " + type + " - período " + periodLabel + ".")
+                        .message("Se generó el reporte " + type + " en PDF.")
                         .type("INFO")
+                        .link("/reportes")
                         .build());
             }
         } catch (Exception ignored) {}
 
         response.setContentType(MediaType.APPLICATION_PDF_VALUE);
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=reporte-" + type + "-" + period + ".pdf");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=reporte-" + type + ".pdf");
         response.getOutputStream().write(baos.toByteArray());
         response.getOutputStream().flush();
     }
 
-    private void renderProductReport(Document document, String period, Font headerFont, Font cellFont) throws DocumentException {
-        List<ReportsDTO.TopProduct> products = reportsService.getTopProducts(period);
+    private void addHeader(Document document, String reportType) throws Exception {
+        PdfPTable header = new PdfPTable(2);
+        header.setWidthPercentage(100);
+        header.setWidths(new float[]{1, 3});
 
-        PdfPTable table = new PdfPTable(5);
+        PdfPCell logoCell = new PdfPCell();
+        logoCell.setBorder(Rectangle.NO_BORDER);
+        logoCell.setVerticalAlignment(Element.ALIGN_CENTER);
+        try {
+            ClassPathResource res = new ClassPathResource("static/logo-fritomix.png");
+            byte[] imgBytes = res.getInputStream().readAllBytes();
+            Image logo = Image.getInstance(imgBytes);
+            logo.scaleToFit(70, 70);
+            logoCell.addElement(logo);
+        } catch (Exception ignored) {
+            logoCell.setPhrase(new Paragraph(" "));
+        }
+
+        PdfPCell titleCell = new PdfPCell();
+        titleCell.setBorder(Rectangle.NO_BORDER);
+        titleCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        titleCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+
+        Font companyFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, HEADER_BG);
+        Font subtitleFont = FontFactory.getFont(FontFactory.HELVETICA, 12, new Color(90, 90, 90));
+        Font dateFont = FontFactory.getFont(FontFactory.HELVETICA, 11, new Color(130, 130, 130));
+
+        String title = switch (reportType) {
+            case "APROBADO" -> "Reporte de Pedidos Aprobados";
+            case "PENDIENTE" -> "Reporte de Pedidos Pendientes";
+            case "CANCELADO" -> "Reporte de Pedidos Cancelados";
+            default -> "Reporte de Logística — Despachos Listos para Despacho";
+        };
+
+        titleCell.addElement(new Paragraph("FRITOMIX S.A.S.", companyFont));
+        titleCell.addElement(new Paragraph(title, subtitleFont));
+        titleCell.addElement(new Paragraph("Fecha de descarga: " + LocalDateTime.now().format(DATETIME_FMT), dateFont));
+
+        header.addCell(logoCell);
+        header.addCell(titleCell);
+        document.add(header);
+
+        Paragraph separator = new Paragraph(" ", FontFactory.getFont(FontFactory.HELVETICA, 1));
+        separator.setSpacingAfter(8);
+        document.add(separator);
+    }
+
+    private void renderTable(Document document, List<ReportsDTO.OrderReportDTO> rows)
+            throws DocumentException {
+        String[] headers = new String[]{"Pedido", "Cliente", "Ciudad", "Fecha", "Peso (kg)", "Estado"};
+        float[] widths = new float[]{2, 3, 1.8f, 1.8f, 1.6f, 1.8f};
+
+        PdfPTable table = new PdfPTable(headers.length);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{0.5f, 3, 2, 1.5f, 2});
+        table.setWidths(widths);
 
-        Color headerBg = new Color(7, 25, 56);
-        String[] headers = {"#", "Producto", "Código", "Unidades", "Monto"};
+        Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Color.WHITE);
         for (String h : headers) {
-            var cell = new PdfPCell(new Phrase(h, headerFont));
-            cell.setBackgroundColor(headerBg);
+            PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
+            cell.setBackgroundColor(HEADER_BG);
             cell.setPadding(6);
+            cell.setHorizontalAlignment("Peso (kg)".equals(h) ? Element.ALIGN_RIGHT : Element.ALIGN_CENTER);
             table.addCell(cell);
         }
 
-        NumberFormat fmt = NumberFormat.getNumberInstance(new Locale("es", "CO"));
-        NumberFormat moneyFmt = NumberFormat.getCurrencyInstance(new Locale("es", "CO"));
+        Font cellFont = FontFactory.getFont(FontFactory.HELVETICA, 8, Color.BLACK);
+        Font boldCellFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, Color.BLACK);
 
-        for (ReportsDTO.TopProduct p : products) {
-            table.addCell(new Phrase(String.valueOf(p.rank()), cellFont));
-            table.addCell(new Phrase(p.name(), cellFont));
-            table.addCell(new Phrase(p.code(), cellFont));
-            table.addCell(new Phrase(fmt.format(p.units()), cellFont));
-            table.addCell(new Phrase(moneyFmt.format(p.amount()), cellFont));
+        boolean zebra = false;
+        for (ReportsDTO.OrderReportDTO r : rows) {
+            Color bg = zebra ? new Color(243, 245, 250) : Color.WHITE;
+            zebra = !zebra;
+
+            table.addCell(styledCell(r.orderNumber(), boldCellFont, bg, Element.ALIGN_LEFT));
+            table.addCell(styledCell(r.customerName() != null ? r.customerName() : "—", cellFont, bg, Element.ALIGN_LEFT));
+            table.addCell(styledCell(r.city() != null ? r.city() : "—", cellFont, bg, Element.ALIGN_LEFT));
+            table.addCell(styledCell(r.orderDate() != null ? r.orderDate().format(DATE_FMT) : "—", cellFont, bg, Element.ALIGN_CENTER));
+            table.addCell(styledCell(formatWeight(r.pesoTotal()), cellFont, bg, Element.ALIGN_RIGHT));
+            table.addCell(styledCell(r.status() != null ? r.status() : "—", cellFont, bg, Element.ALIGN_LEFT));
         }
 
         document.add(table);
     }
 
-    private void renderClientReport(Document document, String period, Font headerFont, Font cellFont) throws DocumentException {
-        List<ReportsDTO.TopClient> clients = reportsService.getTopClients(period);
+    private void renderDispatchTable(Document document, List<ReportsDTO.DispatchReportDTO> rows)
+            throws DocumentException {
+        String[] headers = new String[]{"Despacho", "Pedidos", "Cliente", "Conductor", "Vehículo", "Fecha", "Peso (kg)"};
+        float[] widths = new float[]{2, 2.5f, 2.5f, 1.8f, 1.6f, 1.8f, 1.4f};
 
-        PdfPTable table = new PdfPTable(3);
+        PdfPTable table = new PdfPTable(headers.length);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{4, 1.5f, 2});
+        table.setWidths(widths);
 
-        Color headerBg = new Color(7, 25, 56);
-        String[] headers = {"Cliente", "Pedidos", "Fecha del Pedido"};
+        Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Color.WHITE);
         for (String h : headers) {
-            var cell = new PdfPCell(new Phrase(h, headerFont));
-            cell.setBackgroundColor(headerBg);
+            PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
+            cell.setBackgroundColor(HEADER_BG);
             cell.setPadding(6);
+            cell.setHorizontalAlignment("Peso (kg)".equals(h) ? Element.ALIGN_RIGHT : Element.ALIGN_CENTER);
             table.addCell(cell);
         }
 
-        NumberFormat fmt = NumberFormat.getNumberInstance(new Locale("es", "CO"));
-        DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        Font cellFont = FontFactory.getFont(FontFactory.HELVETICA, 8, Color.BLACK);
+        Font boldCellFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, Color.BLACK);
 
-        for (ReportsDTO.TopClient c : clients) {
-            table.addCell(new Phrase(c.name(), cellFont));
-            table.addCell(new Phrase(fmt.format(c.orders()), cellFont));
-            table.addCell(new Phrase(c.lastOrderDate() != null ? c.lastOrderDate().format(dateFmt) : "—", cellFont));
+        boolean zebra = false;
+        for (ReportsDTO.DispatchReportDTO r : rows) {
+            Color bg = zebra ? new Color(243, 245, 250) : Color.WHITE;
+            zebra = !zebra;
+
+            table.addCell(styledCell(r.dispatchNumber(), boldCellFont, bg, Element.ALIGN_LEFT));
+            table.addCell(styledCell(r.orderNumbers() != null ? String.join(", ", r.orderNumbers()) : "—", cellFont, bg, Element.ALIGN_LEFT));
+            table.addCell(styledCell(r.customerNames() != null ? String.join(", ", r.customerNames()) : "—", cellFont, bg, Element.ALIGN_LEFT));
+            table.addCell(styledCell(r.driverName() != null ? r.driverName() : "—", cellFont, bg, Element.ALIGN_LEFT));
+            table.addCell(styledCell(r.vehiclePlate() != null ? r.vehiclePlate() : "—", cellFont, bg, Element.ALIGN_CENTER));
+            table.addCell(styledCell(r.dispatchDate() != null ? r.dispatchDate().format(DATE_FMT) : "—", cellFont, bg, Element.ALIGN_CENTER));
+            table.addCell(styledCell(formatWeight(r.pesoTotal()), cellFont, bg, Element.ALIGN_RIGHT));
         }
 
         document.add(table);
+    }
+
+    private PdfPCell styledCell(String text, Font font, Color bg, int alignment) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setPadding(5);
+        cell.setBackgroundColor(bg);
+        cell.setHorizontalAlignment(alignment);
+        return cell;
+    }
+
+    private String formatWeight(BigDecimal weight) {
+        if (weight == null) return "0";
+        return weight.setScale(0, java.math.RoundingMode.HALF_UP).toPlainString();
     }
 }

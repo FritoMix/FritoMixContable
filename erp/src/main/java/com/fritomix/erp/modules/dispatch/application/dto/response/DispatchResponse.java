@@ -10,8 +10,12 @@ import java.util.List;
 public record DispatchResponse(
         Long id,
         String dispatchNumber,
+        String tipoPedido,
+        List<OrderInfo> orders,
         Long orderId,
         String orderNumber,
+        BigDecimal pesoTotal,
+        BigDecimal totalDimension,
         BigDecimal pesoTotalCargue,
         Long driverId,
         String driverName,
@@ -22,11 +26,20 @@ public record DispatchResponse(
         String vehicleModel,
         LocalDateTime dispatchDate,
         String status,
+        String cumplimiento,
         String notes,
         String dispatchUserName,
         List<DispatchDetailResponse> details,
         LocalDateTime createdAt
 ) {
+
+    @Builder
+    public record OrderInfo(
+            Long id,
+            String orderNumber,
+            String clientName,
+            BigDecimal pesoTotalCargue
+    ) {}
 
     @Builder
     public record DispatchDetailResponse(
@@ -36,6 +49,8 @@ public record DispatchResponse(
             String productCode,
             BigDecimal quantity,
             BigDecimal delivered,
-            String observations
+            String observations,
+            String detalleProducto,
+            String lote
     ) {}
 }
