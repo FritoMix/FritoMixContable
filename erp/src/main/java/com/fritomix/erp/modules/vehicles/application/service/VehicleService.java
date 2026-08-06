@@ -36,15 +36,15 @@ public class VehicleService {
 
     @Transactional
     public VehicleResponse create(VehicleRequest request) {
-        if (vehicleRepository.existsByPlate(request.plate())) {
-            throw new IllegalArgumentException("Ya existe un vehículo con la placa: " + request.plate());
+        if (vehicleRepository.existsByVehicleNumber(request.vehicleNumber())) {
+            throw new IllegalArgumentException("Ya existe un vehículo con el número: " + request.vehicleNumber());
         }
 
         Vehicle vehicle = Vehicle.builder()
-                .plate(request.plate().toUpperCase())
-                .brand(request.brand())
-                .model(request.model())
+                .vehicleNumber(request.vehicleNumber().toUpperCase())
+                .type(request.type())
                 .capacity(request.capacity())
+                .dimension(request.dimension())
                 .active(request.active() != null ? request.active() : true)
                 .build();
 
@@ -57,16 +57,16 @@ public class VehicleService {
         Vehicle vehicle = vehicleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehículo no encontrado con id: " + id));
 
-        if (request.plate() != null && !request.plate().equalsIgnoreCase(vehicle.getPlate())) {
-            if (vehicleRepository.existsByPlate(request.plate())) {
-                throw new IllegalArgumentException("Ya existe otro vehículo con la placa: " + request.plate());
+        if (request.vehicleNumber() != null && !request.vehicleNumber().equalsIgnoreCase(vehicle.getVehicleNumber())) {
+            if (vehicleRepository.existsByVehicleNumber(request.vehicleNumber())) {
+                throw new IllegalArgumentException("Ya existe otro vehículo con el número: " + request.vehicleNumber());
             }
-            vehicle.setPlate(request.plate().toUpperCase());
+            vehicle.setVehicleNumber(request.vehicleNumber().toUpperCase());
         }
 
-        if (request.brand() != null) vehicle.setBrand(request.brand());
-        if (request.model() != null) vehicle.setModel(request.model());
+        if (request.type() != null) vehicle.setType(request.type());
         if (request.capacity() != null) vehicle.setCapacity(request.capacity());
+        if (request.dimension() != null) vehicle.setDimension(request.dimension());
         if (request.active() != null) vehicle.setActive(request.active());
 
         vehicleRepository.save(vehicle);

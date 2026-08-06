@@ -34,7 +34,7 @@ public final class ReportsDTO {
             String address,
             LocalDateTime dispatchDate,
             String driverName,
-            String vehiclePlate,
+            String vehicleNumber,
             String status,
             BigDecimal pesoTotal
     ) {}

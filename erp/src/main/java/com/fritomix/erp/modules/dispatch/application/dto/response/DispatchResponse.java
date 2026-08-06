@@ -21,15 +21,15 @@ public record DispatchResponse(
         String driverName,
         String driverDocument,
         Long vehicleId,
-        String vehiclePlate,
-        String vehicleBrand,
-        String vehicleModel,
+        String vehicleNumber,
+        String vehicleType,
         LocalDateTime dispatchDate,
         String status,
         String cumplimiento,
         String notes,
         String dispatchUserName,
         List<DispatchDetailResponse> details,
+        List<ArrumeResponse> arrumes,
         LocalDateTime createdAt
 ) {
 
@@ -51,6 +51,15 @@ public record DispatchResponse(
             BigDecimal delivered,
             String observations,
             String detalleProducto,
+            String lote
+    ) {}
+
+    @Builder
+    public record ArrumeResponse(
+            Long id,
+            Integer numArrume,
+            String arrumeProducto,
+            BigDecimal cantidad,
             String lote
     ) {}
 }

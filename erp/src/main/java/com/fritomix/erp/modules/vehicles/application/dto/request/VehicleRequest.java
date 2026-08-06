@@ -11,16 +11,16 @@ import java.math.BigDecimal;
 @Builder
 public record VehicleRequest(
         @NotBlank @Size(max = 20)
-        String plate,
+        String vehicleNumber,
 
         @NotBlank @Size(max = 100)
-        String brand,
-
-        @NotBlank @Size(max = 100)
-        String model,
+        String type,
 
         @NotNull @PositiveOrZero
         BigDecimal capacity,
+
+        @NotNull @PositiveOrZero
+        BigDecimal dimension,
 
         Boolean active
 ) {

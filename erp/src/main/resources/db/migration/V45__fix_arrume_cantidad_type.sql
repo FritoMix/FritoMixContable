@@ -1,0 +1,1 @@
+ALTER TABLE arrumes ALTER COLUMN cantidad TYPE NUMERIC(18,2) USING cantidad::NUMERIC(18,2);
