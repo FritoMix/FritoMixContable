@@ -10,6 +10,7 @@ import com.fritomix.erp.modules.auth.domain.repository.UserRepository;
 import com.fritomix.erp.modules.dispatch.application.dto.request.DispatchRequest;
 import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse;
 import com.fritomix.erp.modules.dispatch.application.mapper.DispatchMapper;
+import com.fritomix.erp.modules.dispatch.domain.entity.Arrume;
 import com.fritomix.erp.modules.dispatch.domain.entity.Dispatch;
 import com.fritomix.erp.modules.dispatch.domain.entity.DispatchDetail;
 import com.fritomix.erp.modules.dispatch.domain.repository.DispatchRepository;
@@ -125,6 +126,19 @@ public class DispatchService {
             }
         }
 
+        if (request.arrumes() != null) {
+            for (DispatchRequest.ArrumeRequest dto : request.arrumes()) {
+                Arrume arrume = Arrume.builder()
+                        .dispatch(dispatch)
+                        .numArrume(dto.numArrume())
+                        .arrumeProducto(dto.arrumeProducto())
+                        .cantidad(dto.cantidad())
+                        .lote(dto.lote())
+                        .build();
+                dispatch.getArrumes().add(arrume);
+            }
+        }
+
         dispatch.setCumplimiento(calcularCumplimiento(dispatch.getDetails()));
 
         dispatch = dispatchRepository.save(dispatch);
@@ -185,6 +199,20 @@ public class DispatchService {
                 dispatch.getDetails().add(detail);
             }
             dispatch.setCumplimiento(calcularCumplimiento(dispatch.getDetails()));
+        }
+
+        if (request.arrumes() != null) {
+            dispatch.getArrumes().clear();
+            for (DispatchRequest.ArrumeRequest dto : request.arrumes()) {
+                Arrume arrume = Arrume.builder()
+                        .dispatch(dispatch)
+                        .numArrume(dto.numArrume())
+                        .arrumeProducto(dto.arrumeProducto())
+                        .cantidad(dto.cantidad())
+                        .lote(dto.lote())
+                        .build();
+                dispatch.getArrumes().add(arrume);
+            }
         }
 
         dispatch = dispatchRepository.save(dispatch);
@@ -329,7 +357,7 @@ public class DispatchService {
                             "Hola " + dispatchUser.getFirstName() + ",\n\n"
                                     + "Se ha creado un nuevo despacho: " + dispatch.getDispatchNumber() + ".\n"
                                     + "Conductor: " + driver.getName() + "\n"
-                                    + "Vehículo: " + vehicle.getPlate() + "\n\n"
+                                    + "Vehículo: " + vehicle.getVehicleNumber() + "\n\n"
                                     + "FritoMix S.A.S."
                     );
                 }

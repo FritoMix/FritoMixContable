@@ -76,6 +76,10 @@ public class Dispatch {
     @Builder.Default
     private List<DispatchDetail> details = new ArrayList<>();
 
+    @OneToMany(mappedBy = "dispatch", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Arrume> arrumes = new ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

@@ -2,8 +2,10 @@ package com.fritomix.erp.modules.dispatch.application.mapper;
 
 import com.fritomix.erp.modules.auth.domain.repository.UserRepository;
 import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse;
+import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse.ArrumeResponse;
 import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse.DispatchDetailResponse;
 import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse.OrderInfo;
+import com.fritomix.erp.modules.dispatch.domain.entity.Arrume;
 import com.fritomix.erp.modules.dispatch.domain.entity.Dispatch;
 import com.fritomix.erp.modules.dispatch.domain.entity.DispatchDetail;
 import com.fritomix.erp.modules.drivers.domain.entity.Driver;
@@ -87,6 +89,9 @@ public class DispatchMapper {
                 .notes(dispatch.getNotes())
                 .dispatchUserName(dispatchUserName)
                 .details(details.stream().map(this::toDetailResponse).collect(Collectors.toList()))
+                .arrumes(dispatch.getArrumes() == null
+                        ? Collections.emptyList()
+                        : dispatch.getArrumes().stream().map(this::toArrumeResponse).collect(Collectors.toList()))
                 .createdAt(dispatch.getCreatedAt());
 
         if (firstOrder != null) {
@@ -100,9 +105,8 @@ public class DispatchMapper {
         }
         if (vehicle != null) {
             builder.vehicleId(vehicle.getId())
-                   .vehiclePlate(vehicle.getPlate())
-                   .vehicleBrand(vehicle.getBrand())
-                   .vehicleModel(vehicle.getModel());
+                   .vehicleNumber(vehicle.getVehicleNumber())
+                   .vehicleType(vehicle.getType());
         }
 
         return builder.build();
@@ -124,5 +128,15 @@ public class DispatchMapper {
         }
 
         return builder.build();
+    }
+
+    private ArrumeResponse toArrumeResponse(Arrume arrume) {
+        return ArrumeResponse.builder()
+                .id(arrume.getId())
+                .numArrume(arrume.getNumArrume())
+                .arrumeProducto(arrume.getArrumeProducto())
+                .cantidad(arrume.getCantidad())
+                .lote(arrume.getLote())
+                .build();
     }
 }

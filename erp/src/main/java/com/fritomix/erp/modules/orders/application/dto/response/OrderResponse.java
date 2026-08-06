@@ -28,7 +28,7 @@ public record OrderResponse(
         String dispatchDriverName,
         String dispatchDriverDocument,
         String dispatchDriverPhone,
-        String dispatchVehiclePlate,
+        String dispatchVehicleNumber,
         LocalDateTime dispatchDate,
         List<OrderDetailResponse> details,
         LocalDateTime createdAt
