@@ -33,8 +33,8 @@ public class ReportsService {
     }
 
     @Transactional(readOnly = true)
-    public List<ReportsDTO.DispatchReportDTO> getListoCargueDispatches() {
-        return dispatchRepository.findAllByStatusWithFetch("LISTO_CARGUE").stream()
+    public List<ReportsDTO.DispatchReportDTO> getDespachados() {
+        return dispatchRepository.findAllByStatusWithFetch("DESPACHADO").stream()
                 .map(this::toDispatchReport)
                 .collect(Collectors.toList());
     }
@@ -124,7 +124,7 @@ public class ReportsService {
                 .address(address)
                 .dispatchDate(dispatch.getDispatchDate())
                 .driverName(dispatch.getDriver() != null ? dispatch.getDriver().getName() : null)
-                .vehiclePlate(dispatch.getVehicle() != null ? dispatch.getVehicle().getPlate() : null)
+                .vehicleNumber(dispatch.getVehicle() != null ? dispatch.getVehicle().getVehicleNumber() : null)
                 .status(dispatch.getStatus())
                 .pesoTotal(pesoTotal)
                 .build();

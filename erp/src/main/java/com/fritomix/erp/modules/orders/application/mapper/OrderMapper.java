@@ -52,7 +52,7 @@ public class OrderMapper {
         String dispatchDriverName = null;
         String dispatchDriverDocument = null;
         String dispatchDriverPhone = null;
-        String dispatchVehiclePlate = null;
+        String dispatchVehicleNumber = null;
         LocalDateTime dispatchDate = null;
         Map<Long, String> detalleProductoPorProducto = new HashMap<>();
         Map<Long, java.math.BigDecimal> deliveredPorProducto = new HashMap<>();
@@ -78,7 +78,7 @@ public class OrderMapper {
                 dispatchDriverPhone = d.getDriver().getPhone();
             }
             if (d.getVehicle() != null) {
-                dispatchVehiclePlate = d.getVehicle().getPlate();
+                dispatchVehicleNumber = d.getVehicle().getVehicleNumber();
             }
             if (d.getUserId() != null) {
                 User dispatchUser = userRepository.findById(d.getUserId()).orElse(null);
@@ -126,7 +126,7 @@ public class OrderMapper {
                 .dispatchDriverName(dispatchDriverName)
                 .dispatchDriverDocument(dispatchDriverDocument)
                 .dispatchDriverPhone(dispatchDriverPhone)
-                .dispatchVehiclePlate(dispatchVehiclePlate)
+                .dispatchVehicleNumber(dispatchVehicleNumber)
                 .dispatchDate(dispatchDate)
                 .details(details.stream().map(d -> toDetailResponse(d, detalleProductoPorProducto, deliveredPorProducto, observationsPorProducto, lotePorProducto)).collect(Collectors.toList()))
                 .createdAt(order.getCreatedAt())
