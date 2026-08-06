@@ -23,6 +23,7 @@ public record ProductResponse(
         BigDecimal pesoUnidad,
         BigDecimal dimension,
         BigDecimal pesoTotalCargue,
+        Integer stock,
         LocalDateTime createdAt
 ) {
 }

@@ -43,6 +43,10 @@ public record OrderResponse(
             String productType,
             BigDecimal pesoUnidad,
             BigDecimal dimension,
-            BigDecimal quantity
+            BigDecimal quantity,
+            BigDecimal delivered,
+            String observations,
+            String detalleProducto,
+            String lote
     ) {}
 }

@@ -15,7 +15,9 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -52,6 +54,10 @@ public class OrderMapper {
         String dispatchDriverPhone = null;
         String dispatchVehiclePlate = null;
         LocalDateTime dispatchDate = null;
+        Map<Long, String> detalleProductoPorProducto = new HashMap<>();
+        Map<Long, java.math.BigDecimal> deliveredPorProducto = new HashMap<>();
+        Map<Long, String> observationsPorProducto = new HashMap<>();
+        Map<Long, String> lotePorProducto = new HashMap<>();
 
         if (address != null && address.getCity() != null) {
             cityName = address.getCity().getName();
@@ -79,6 +85,24 @@ public class OrderMapper {
                 dispatchUserName = dispatchUser != null ? (dispatchUser.getFirstName() + " " + dispatchUser.getLastName()).trim() : null;
             }
             dispatchDate = d.getDispatchDate();
+            if (d.getDetails() != null) {
+                d.getDetails().forEach(dd -> {
+                    if (dd.getProduct() == null) return;
+                    Long pid = dd.getProduct().getId();
+                    if (dd.getDetalleProducto() != null && !dd.getDetalleProducto().isBlank()) {
+                        detalleProductoPorProducto.put(pid, dd.getDetalleProducto());
+                    }
+                    if (dd.getDelivered() != null) {
+                        deliveredPorProducto.put(pid, dd.getDelivered());
+                    }
+                    if (dd.getObservations() != null && !dd.getObservations().isBlank()) {
+                        observationsPorProducto.put(pid, dd.getObservations());
+                    }
+                    if (dd.getLote() != null && !dd.getLote().isBlank()) {
+                        lotePorProducto.put(pid, dd.getLote());
+                    }
+                });
+            }
         }
 
         return OrderResponse.builder()
@@ -104,12 +128,15 @@ public class OrderMapper {
                 .dispatchDriverPhone(dispatchDriverPhone)
                 .dispatchVehiclePlate(dispatchVehiclePlate)
                 .dispatchDate(dispatchDate)
-                .details(details.stream().map(this::toDetailResponse).collect(Collectors.toList()))
+                .details(details.stream().map(d -> toDetailResponse(d, detalleProductoPorProducto, deliveredPorProducto, observationsPorProducto, lotePorProducto)).collect(Collectors.toList()))
                 .createdAt(order.getCreatedAt())
                 .build();
     }
 
-    private OrderDetailResponse toDetailResponse(OrderDetail detail) {
+    private OrderDetailResponse toDetailResponse(OrderDetail detail, Map<Long, String> detalleProductoPorProducto,
+                                                 Map<Long, java.math.BigDecimal> deliveredPorProducto,
+                                                 Map<Long, String> observationsPorProducto,
+                                                 Map<Long, String> lotePorProducto) {
         return OrderDetailResponse.builder()
                 .id(detail.getId())
                 .productId(detail.getProduct().getId())
@@ -119,6 +146,10 @@ public class OrderMapper {
                 .pesoUnidad(detail.getProduct().getPesoUnidad())
                 .dimension(detail.getProduct().getDimension())
                 .quantity(detail.getQuantity())
+                .delivered(deliveredPorProducto.get(detail.getProduct().getId()))
+                .observations(observationsPorProducto.get(detail.getProduct().getId()))
+                .detalleProducto(detalleProductoPorProducto.get(detail.getProduct().getId()))
+                .lote(lotePorProducto.get(detail.getProduct().getId()))
                 .build();
     }
 }

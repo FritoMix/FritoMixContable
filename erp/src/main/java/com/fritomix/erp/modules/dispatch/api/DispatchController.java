@@ -5,11 +5,13 @@ import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchRespon
 import com.fritomix.erp.modules.dispatch.application.service.DispatchService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -51,8 +53,22 @@ public class DispatchController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAuthority('PERMISSION_DISPATCHES_EDIT')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_DISPATCHES_EDIT','PERMISSION_DISPATCHES_CHANGE_STATUS')")
     public ResponseEntity<DispatchResponse> updateStatus(@PathVariable Long id, @RequestParam String status) {
         return ResponseEntity.ok(dispatchService.updateStatus(id, status));
+    }
+
+    @GetMapping("/historial/pedido/{orderId}")
+    @PreAuthorize("hasAuthority('PERMISSION_DISPATCHES_VIEW')")
+    public ResponseEntity<List<DispatchResponse>> historyByOrder(@PathVariable Long orderId) {
+        return ResponseEntity.ok(dispatchService.findHistoryByOrderId(orderId));
+    }
+
+    @GetMapping("/historial")
+    @PreAuthorize("hasAuthority('PERMISSION_DISPATCHES_VIEW')")
+    public ResponseEntity<List<DispatchResponse>> historyByRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta) {
+        return ResponseEntity.ok(dispatchService.findByDateRange(desde, hasta));
     }
 }

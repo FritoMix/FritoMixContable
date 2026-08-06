@@ -1,6 +1,7 @@
 package com.fritomix.erp.modules.orders.application.service;
 
 import com.fritomix.erp.exception.ResourceNotFoundException;
+import com.fritomix.erp.modules.auth.domain.enums.RoleType;
 import com.fritomix.erp.modules.customers.domain.entity.Customer;
 import com.fritomix.erp.modules.customers.domain.repository.CustomerRepository;
 import com.fritomix.erp.modules.notifications.application.dto.request.NotificationRequest;
@@ -73,10 +74,27 @@ public class OrderService {
         return mapper.toResponse(order);
     }
 
+    @Transactional(readOnly = true)
+    public String generateNextOrderNumber() {
+        int max = 0;
+        for (String orderNumber : orderRepository.findAllPedNumbers()) {
+            if (orderNumber == null) continue;
+            try {
+                int num = Integer.parseInt(orderNumber.substring(4));
+                if (num > max) max = num;
+            } catch (NumberFormatException | IndexOutOfBoundsException ignored) {
+            }
+        }
+        return String.format("PED-%05d", max + 1);
+    }
+
     @Transactional
     public OrderResponse create(OrderRequest request) {
-        if (orderRepository.existsByOrderNumber(request.orderNumber())) {
-            throw new IllegalArgumentException("Ya existe un pedido con el número: " + request.orderNumber());
+        String orderNumber = request.orderNumber() != null && !request.orderNumber().isBlank()
+                ? request.orderNumber().trim()
+                : generateNextOrderNumber();
+        if (orderRepository.existsByOrderNumber(orderNumber)) {
+            throw new IllegalArgumentException("Ya existe un pedido con el número: " + orderNumber);
         }
 
         Customer customer = customerRepository.findById(request.customerId())
@@ -85,7 +103,7 @@ public class OrderService {
         Order order = Order.builder()
                 .customer(customer)
                 .userId(request.userId())
-                .orderNumber(request.orderNumber())
+                .orderNumber(orderNumber)
                 .orderDate(request.orderDate() != null ? request.orderDate() : java.time.LocalDateTime.now())
                 .status(request.status() != null ? request.status() : "PENDIENTE")
                 .total(request.total())
@@ -118,6 +136,16 @@ public class OrderService {
         order = orderRepository.save(order);
 
         try {
+            // Notificar a CARTERA (aprobación) y ADMIN
+            notificationService.createForRoles(
+                    "Nuevo pedido",
+                    "Se ha creado el pedido " + order.getOrderNumber() + " para el cliente " + customer.getBusinessName() + ".",
+                    "INFO",
+                    "/pedidos/" + order.getId(),
+                    RoleType.CARTERA, RoleType.ADMIN
+            );
+
+            // Notificar al usuario que creó el pedido
             if (request.userId() != null) {
                 notificationService.create(NotificationRequest.builder()
                         .userId(request.userId())
@@ -128,6 +156,7 @@ public class OrderService {
                         .build());
             }
 
+            // Email al cliente
             if (customer.getEmail() != null && !customer.getEmail().isBlank()) {
                 emailService.sendEmail(
                         customer.getEmail(),
@@ -199,5 +228,42 @@ public class OrderService {
             throw new ResourceNotFoundException("Pedido no encontrado con id: " + id);
         }
         orderRepository.deleteById(id);
+    }
+
+    @Transactional
+    public OrderResponse updateStatus(Long id, String status) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado con id: " + id));
+
+        String newStatus = status != null ? status.toUpperCase() : null;
+        if (!List.of("PENDIENTE", "APROBADO", "CANCELADO").contains(newStatus)) {
+            throw new IllegalArgumentException("Estado inválido para el pedido: " + status);
+        }
+        order.setStatus(newStatus);
+        order = orderRepository.save(order);
+
+        try {
+            if ("APROBADO".equals(newStatus)) {
+                notificationService.createForRoles(
+                        "Pedido aprobado",
+                        "El pedido " + order.getOrderNumber() + " fue aprobado y está listo para despacho.",
+                        "SUCCESS",
+                        "/pedidos/" + order.getId(),
+                        RoleType.DESPACHADOR, RoleType.ADMIN
+                );
+            } else if ("CANCELADO".equals(newStatus)) {
+                notificationService.createForRoles(
+                        "Pedido cancelado",
+                        "El pedido " + order.getOrderNumber() + " fue cancelado.",
+                        "WARNING",
+                        "/pedidos/" + order.getId(),
+                        RoleType.ADMIN
+                );
+            }
+        } catch (Exception e) {
+            log.error("Error al notificar cambio de estado del pedido {}: {}", order.getOrderNumber(), e.getMessage(), e);
+        }
+
+        return mapper.toResponse(order);
     }
 }

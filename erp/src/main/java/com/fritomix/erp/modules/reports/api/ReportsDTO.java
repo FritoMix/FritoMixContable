@@ -3,21 +3,39 @@ package com.fritomix.erp.modules.reports.api;
 import lombok.Builder;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 
 public final class ReportsDTO {
 
     private ReportsDTO() {}
 
     @Builder
-    public record KPIResponse(BigDecimal totalSales, long completedOrders, long dispatchedUnits) {}
+    public record OrderReportDTO(
+            Long id,
+            String orderNumber,
+            String customerName,
+            String city,
+            String department,
+            String address,
+            String phone,
+            LocalDateTime orderDate,
+            String status,
+            BigDecimal pesoTotal
+    ) {}
 
     @Builder
-    public record TopProduct(int rank, String name, String code, long units, BigDecimal amount) {}
-
-    @Builder
-    public record TopClient(String name, long orders, LocalDate lastOrderDate) {}
-
-    @Builder
-    public record ReportFilters(String period, String type) {}
+    public record DispatchReportDTO(
+            Long id,
+            String dispatchNumber,
+            List<String> orderNumbers,
+            List<String> customerNames,
+            String city,
+            String address,
+            LocalDateTime dispatchDate,
+            String driverName,
+            String vehiclePlate,
+            String status,
+            BigDecimal pesoTotal
+    ) {}
 }
