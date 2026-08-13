@@ -23,8 +23,6 @@ public record ProductRequest(
         @NotBlank @Size(max = 30)
         String unit,
 
-        BigDecimal price,
-        BigDecimal cost,
         Integer presentation,
         String weight,
         Integer weightGrams,

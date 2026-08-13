@@ -1,8 +1,8 @@
 package com.fritomix.erp.modules.notifications.api;
 
+import com.fritomix.erp.modules.auth.application.dto.JwtUserInfo;
 import com.fritomix.erp.modules.notifications.application.dto.response.NotificationResponse;
 import com.fritomix.erp.modules.notifications.application.service.NotificationService;
-import com.fritomix.erp.security.service.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -52,8 +52,8 @@ public class NotificationController {
 
     private Long getCurrentUserId() {
         var principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if (principal instanceof CustomUserDetails) {
-            return ((CustomUserDetails) principal).getUser().getId();
+        if (principal instanceof JwtUserInfo userInfo) {
+            return userInfo.userId();
         }
         throw new IllegalStateException("No se pudo obtener el ID del usuario autenticado");
     }

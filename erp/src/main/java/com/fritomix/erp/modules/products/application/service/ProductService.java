@@ -52,8 +52,6 @@ public class ProductService {
                 .name(request.name())
                 .description(request.description())
                 .unit(request.unit())
-                .price(request.price() != null ? request.price() : BigDecimal.ZERO)
-                .cost(request.cost() != null ? request.cost() : BigDecimal.ZERO)
                 .presentation(request.presentation() != null ? request.presentation() : 0)
                 .weight(request.weight())
                 .weightGrams(request.weightGrams() != null ? request.weightGrams() : 0)
@@ -87,8 +85,6 @@ public class ProductService {
         if (request.name() != null) product.setName(request.name());
         if (request.description() != null) product.setDescription(request.description());
         if (request.unit() != null) product.setUnit(request.unit());
-        if (request.price() != null) product.setPrice(request.price());
-        if (request.cost() != null) product.setCost(request.cost());
         if (request.presentation() != null) product.setPresentation(request.presentation());
         if (request.weight() != null) product.setWeight(request.weight());
         if (request.weightGrams() != null) product.setWeightGrams(request.weightGrams());

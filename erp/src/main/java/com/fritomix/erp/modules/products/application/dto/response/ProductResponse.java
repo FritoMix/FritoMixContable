@@ -13,8 +13,6 @@ public record ProductResponse(
         String description,
         String unit,
         Boolean active,
-        BigDecimal price,
-        BigDecimal cost,
         Integer presentation,
         String weight,
         Integer weightGrams,
@@ -23,7 +21,6 @@ public record ProductResponse(
         BigDecimal pesoUnidad,
         BigDecimal dimension,
         BigDecimal pesoTotalCargue,
-        Integer stock,
         LocalDateTime createdAt
 ) {
 }

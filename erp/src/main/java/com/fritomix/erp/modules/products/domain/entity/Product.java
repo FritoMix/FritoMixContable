@@ -39,14 +39,6 @@ public class Product {
     @Builder.Default
     private Boolean active = true;
 
-    @Column(precision = 18, scale = 2)
-    @Builder.Default
-    private BigDecimal price = BigDecimal.ZERO;
-
-    @Column(precision = 18, scale = 2)
-    @Builder.Default
-    private BigDecimal cost = BigDecimal.ZERO;
-
     @Column
     @Builder.Default
     private Integer presentation = 0;
@@ -66,14 +58,6 @@ public class Product {
 
     @Column(name = "peso_total_cargue", precision = 18, scale = 4)
     private BigDecimal pesoTotalCargue;
-
-    @Column(nullable = false)
-    @Builder.Default
-    private Integer stock = 0;
-
-    @Version
-    @Column(nullable = false)
-    private Long version;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

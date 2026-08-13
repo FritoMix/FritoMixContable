@@ -27,9 +27,6 @@ public record OrderRequest(
         @Size(max = 30)
         String status,
 
-        @NotNull @PositiveOrZero
-        BigDecimal total,
-
         String notes,
 
         @Valid

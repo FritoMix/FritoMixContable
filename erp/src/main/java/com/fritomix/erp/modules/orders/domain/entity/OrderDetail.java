@@ -31,12 +31,6 @@ public class OrderDetail {
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal quantity;
 
-    @Column(nullable = false, precision = 18, scale = 2)
-    private BigDecimal price;
-
-    @Column(nullable = false, precision = 18, scale = 2)
-    private BigDecimal subtotal;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

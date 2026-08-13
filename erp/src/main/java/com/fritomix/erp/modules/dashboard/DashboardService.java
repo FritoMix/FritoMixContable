@@ -3,6 +3,8 @@ package com.fritomix.erp.modules.dashboard;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +13,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
@@ -18,6 +21,7 @@ public class DashboardService {
     private final EntityManager em;
 
     @Transactional(readOnly = true)
+    @Cacheable("dashboard")
     public DashboardDTO getDashboard() {
         long ordersToday = countOrdersToday();
         long pendingDispatches = countPendingDispatches();
@@ -46,6 +50,7 @@ public class DashboardService {
             q.setParameter("today", LocalDate.now());
             return ((Number) q.getSingleResult()).longValue();
         } catch (Exception e) {
+            log.error("Error contando órdenes de hoy", e);
             return 0;
         }
     }
@@ -55,6 +60,7 @@ public class DashboardService {
             Query q = em.createNativeQuery("SELECT COUNT(*) FROM dispatches WHERE status = 'PENDIENTE'");
             return ((Number) q.getSingleResult()).longValue();
         } catch (Exception e) {
+            log.error("Error contando despachos pendientes", e);
             return 0;
         }
     }
@@ -64,6 +70,7 @@ public class DashboardService {
             Query q = em.createNativeQuery("SELECT COUNT(*) FROM " + table);
             return ((Number) q.getSingleResult()).longValue();
         } catch (Exception e) {
+            log.error("Error contando registros de la tabla {}", table, e);
             return 0;
         }
     }
@@ -96,7 +103,9 @@ public class DashboardService {
                 result.add(DashboardDTO.MonthlySales.builder()
                         .month(monthName).count(count).total(total).build());
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.error("Error cargando ventas mensuales", e);
+        }
         return result;
     }
 
@@ -113,7 +122,9 @@ public class DashboardService {
                         .count(((Number) row[1]).longValue())
                         .build());
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.error("Error cargando estados de órdenes", e);
+        }
         return result;
     }
 
@@ -138,7 +149,9 @@ public class DashboardService {
                         .units((BigDecimal) row[2])
                         .build());
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.error("Error cargando productos top", e);
+        }
         return result;
     }
 
@@ -166,7 +179,9 @@ public class DashboardService {
                         .date((String) row[3])
                         .build());
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.error("Error cargando órdenes recientes", e);
+        }
         return result;
     }
 }
