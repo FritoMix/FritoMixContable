@@ -17,6 +17,7 @@ public class UserMapper {
                 .role(user.getRole().getName())
                 .enabled(user.getEnabled())
                 .accountNonLocked(user.getAccountNonLocked())
+                .failedAttempts(user.getFailedAttempts())
                 .accountNonExpired(user.getAccountNonExpired())
                 .credentialsNonExpired(user.getCredentialsNonExpired())
                 .lastLogin(user.getLastLogin())
@@ -34,6 +35,7 @@ public class UserMapper {
                 .role(role)
                 .enabled(true)
                 .accountNonLocked(true)
+                .failedAttempts(0)
                 .accountNonExpired(true)
                 .credentialsNonExpired(true)
                 .build();

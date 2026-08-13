@@ -91,6 +91,11 @@ public class DispatchService {
             throw new IllegalArgumentException("Un despacho de tipo pedido_unico debe contener exactamente un pedido");
         }
 
+        String status = request.status() != null ? request.status().toUpperCase() : "PENDIENTE";
+        if (!STATUS_FLOW.subList(0, 2).contains(status)) {
+            throw new IllegalArgumentException("Estado inicial inválido para el despacho: " + request.status());
+        }
+
         validateNoActiveDispatch(orders);
 
         Driver driver = driverRepository.findById(request.driverId())
@@ -105,7 +110,7 @@ public class DispatchService {
                 .vehicle(vehicle)
                 .dispatchNumber(request.dispatchNumber())
                 .dispatchDate(request.dispatchDate() != null ? request.dispatchDate() : java.time.LocalDateTime.now())
-                .status(request.status() != null ? request.status() : "PENDIENTE")
+                .status(status)
                 .notes(request.notes())
                 .userId(request.userId())
                 .build();
@@ -152,6 +157,10 @@ public class DispatchService {
         Dispatch dispatch = dispatchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Despacho no encontrado con id: " + id));
 
+        if (STATUS_CERRADOS.contains(dispatch.getStatus())) {
+            throw new IllegalArgumentException("No se puede editar un despacho en estado " + dispatch.getStatus());
+        }
+
         String tipoPedido = request.tipoPedido() != null ? request.tipoPedido() : dispatch.getTipoPedido();
         if (!VALID_TIPO_PEDIDO.contains(tipoPedido)) {
             throw new IllegalArgumentException("tipo_pedido inválido. Valores válidos: " + VALID_TIPO_PEDIDO);
@@ -180,7 +189,15 @@ public class DispatchService {
         }
 
         if (request.dispatchNumber() != null) dispatch.setDispatchNumber(request.dispatchNumber());
-        if (request.status() != null) dispatch.setStatus(request.status());
+        if (request.status() != null) {
+            String newStatus = request.status().toUpperCase();
+            int currentIdx = STATUS_FLOW.indexOf(dispatch.getStatus());
+            int newIdx = STATUS_FLOW.indexOf(newStatus);
+            if (newIdx < 0 || newIdx < currentIdx) {
+                throw new IllegalArgumentException("Estado inválido o retroceso de flujo para el despacho: " + request.status());
+            }
+            dispatch.setStatus(newStatus);
+        }
         if (request.notes() != null) dispatch.setNotes(request.notes());
 
         if (request.details() != null) {
@@ -221,10 +238,12 @@ public class DispatchService {
 
     @Transactional
     public void delete(Long id) {
-        if (!dispatchRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Despacho no encontrado con id: " + id);
+        Dispatch dispatch = dispatchRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Despacho no encontrado con id: " + id));
+        if (STATUS_CERRADOS.contains(dispatch.getStatus())) {
+            throw new IllegalArgumentException("No se puede eliminar un despacho en estado " + dispatch.getStatus());
         }
-        dispatchRepository.deleteById(id);
+        dispatchRepository.delete(dispatch);
     }
 
     @Transactional
@@ -234,6 +253,11 @@ public class DispatchService {
         String newStatus = status != null ? status.toUpperCase() : null;
         if (!VALID_STATUS.contains(newStatus)) {
             throw new IllegalArgumentException("Estado inválido para el despacho: " + status);
+        }
+        int currentIdx = STATUS_FLOW.indexOf(dispatch.getStatus());
+        int newIdx = STATUS_FLOW.indexOf(newStatus);
+        if (newIdx < currentIdx) {
+            throw new IllegalArgumentException("No se puede cambiar el despacho de " + dispatch.getStatus() + " a " + newStatus);
         }
         dispatch.setStatus(newStatus);
         dispatch = dispatchRepository.save(dispatch);

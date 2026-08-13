@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,23 +29,57 @@ public class ReportsService {
 
     @Transactional(readOnly = true)
     public List<ReportsDTO.OrderReportDTO> getOrdersByStatus(String status) {
-        return orderRepository.findByStatus(status).stream()
-                .map(this::toReport)
+        List<Order> orders = orderRepository.findByStatusWithDetails(status);
+
+        Map<Long, CustomerAddress> addressByCustomer = mainAddressByCustomer(
+                orders.stream()
+                        .map(order -> order.getCustomer().getId())
+                        .distinct()
+                        .collect(Collectors.toList()));
+
+        return orders.stream()
+                .map(o -> toReport(o, addressByCustomer.get(o.getCustomer().getId())))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<ReportsDTO.DispatchReportDTO> getDespachados() {
-        return dispatchRepository.findAllByStatusWithFetch("DESPACHADO").stream()
-                .map(this::toDispatchReport)
+        List<Dispatch> dispatches = dispatchRepository.findAllByStatusWithFetch("DESPACHADO");
+
+        List<Long> orderIds = dispatches.stream()
+                .flatMap(d -> d.getOrders().stream())
+                .map(Order::getId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Long, List<OrderDetail>> detailsByOrder = orderIds.isEmpty() ? Map.of()
+                : orderRepository.findDetailsByOrderIds(orderIds).stream()
+                        .collect(Collectors.groupingBy(detail -> detail.getOrder().getId()));
+
+        Map<Long, CustomerAddress> addressByCustomer = mainAddressByCustomer(
+                dispatches.stream()
+                        .flatMap(d -> d.getOrders().stream())
+                        .map(o -> o.getCustomer().getId())
+                        .distinct()
+                        .collect(Collectors.toList()));
+
+        return dispatches.stream()
+                .map(d -> toDispatchReport(d, detailsByOrder, addressByCustomer))
                 .collect(Collectors.toList());
     }
 
-    private ReportsDTO.OrderReportDTO toReport(Order order) {
-        CustomerAddress address = addressRepository
-                .findByCustomerIdAndIsMainTrue(order.getCustomer().getId())
-                .orElse(null);
+    private Map<Long, CustomerAddress> mainAddressByCustomer(List<Long> customerIds) {
+        if (customerIds.isEmpty()) {
+            return Map.of();
+        }
+        return addressRepository.findAllMainByCustomerIds(customerIds).stream()
+                .collect(Collectors.toMap(
+                        a -> a.getCustomer().getId(),
+                        Function.identity(),
+                        (first, ignored) -> first));
+    }
 
+    private ReportsDTO.OrderReportDTO toReport(Order order, CustomerAddress address) {
         String city = null;
         String department = null;
         if (address != null && address.getCity() != null) {
@@ -80,7 +116,11 @@ public class ReportsService {
         return unitWeight.multiply(detail.getQuantity());
     }
 
-    private ReportsDTO.DispatchReportDTO toDispatchReport(Dispatch dispatch) {
+    private ReportsDTO.DispatchReportDTO toDispatchReport(
+            Dispatch dispatch,
+            Map<Long, List<OrderDetail>> detailsByOrder,
+            Map<Long, CustomerAddress> addressByCustomer
+    ) {
         List<Order> orders = dispatch.getOrders();
         if (orders == null) orders = List.of();
 
@@ -98,9 +138,7 @@ public class ReportsService {
         String city = null;
         String address = null;
         if (firstOrder != null && firstOrder.getCustomer() != null) {
-            CustomerAddress addr = addressRepository
-                    .findByCustomerIdAndIsMainTrue(firstOrder.getCustomer().getId())
-                    .orElse(null);
+            CustomerAddress addr = addressByCustomer.get(firstOrder.getCustomer().getId());
             if (addr != null && addr.getCity() != null) {
                 city = addr.getCity().getName();
             }
@@ -108,9 +146,7 @@ public class ReportsService {
         }
 
         BigDecimal pesoTotal = orders.stream()
-                .flatMap(o -> o.getDetails() == null
-                        ? java.util.Collections.<OrderDetail>emptyList().stream()
-                        : o.getDetails().stream())
+                .flatMap(o -> detailsByOrder.getOrDefault(o.getId(), List.of()).stream())
                 .map(this::detailWeight)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);

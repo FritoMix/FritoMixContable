@@ -7,8 +7,10 @@ import com.fritomix.erp.modules.auth.domain.entity.Role;
 import com.fritomix.erp.modules.auth.domain.entity.User;
 import com.fritomix.erp.modules.auth.domain.repository.RefreshTokenRepository;
 import com.fritomix.erp.modules.auth.domain.repository.UserRepository;
+import com.fritomix.erp.modules.auth.exception.AccountLockedException;
 import com.fritomix.erp.modules.auth.exception.InvalidCredentialsException;
 import com.fritomix.erp.modules.auth.exception.UserDisabledException;
+import com.fritomix.erp.modules.settings.application.service.SettingService;
 import com.fritomix.erp.security.jwt.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +45,9 @@ class LoginHandlerTest {
 
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    private SettingService settingService;
 
     @InjectMocks
     private LoginHandler loginHandler;
@@ -85,6 +90,7 @@ class LoginHandlerTest {
         assertEquals("access-token", result.accessToken());
         assertEquals("refresh-token", result.refreshToken());
         assertEquals(validUser, result.user());
+        assertEquals(0, result.user().getFailedAttempts());
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
         verify(userRepository).findByEmail(validCommand.email());
         verify(userRepository).save(validUser);
@@ -92,20 +98,72 @@ class LoginHandlerTest {
 
     @Test
     void handle_shouldThrowInvalidCredentialsWhenBadPassword() {
+        when(userRepository.findByEmail(validCommand.email())).thenReturn(Optional.of(validUser));
+        when(settingService.getSecurityPolicy())
+                .thenReturn(new SettingService.SecurityPolicy(8, true, 5));
         doThrow(new BadCredentialsException("Bad credentials"))
                 .when(authenticationManager).authenticate(any());
 
         assertThrows(InvalidCredentialsException.class, () -> loginHandler.handle(validCommand));
-        verify(userRepository, never()).findByEmail(any());
+        assertEquals(1, validUser.getFailedAttempts());
+        verify(userRepository).findByEmail(validCommand.email());
+        verify(userRepository).save(validUser);
     }
 
     @Test
     void handle_shouldThrowUserDisabledWhenAccountDisabled() {
+        when(userRepository.findByEmail(validCommand.email())).thenReturn(Optional.of(validUser));
         doThrow(new DisabledException("User disabled"))
                 .when(authenticationManager).authenticate(any());
 
         assertThrows(UserDisabledException.class, () -> loginHandler.handle(validCommand));
-        verify(userRepository, never()).findByEmail(any());
+        verify(userRepository).findByEmail(validCommand.email());
+    }
+
+    @Test
+    void handle_shouldThrowAccountLockedWhenLockedThresholdReached() {
+        validUser.setFailedAttempts(4);
+        when(userRepository.findByEmail(validCommand.email())).thenReturn(Optional.of(validUser));
+        when(settingService.getSecurityPolicy())
+                .thenReturn(new SettingService.SecurityPolicy(8, true, 5));
+        doThrow(new BadCredentialsException("Bad credentials"))
+                .when(authenticationManager).authenticate(any());
+
+        assertThrows(InvalidCredentialsException.class, () -> loginHandler.handle(validCommand));
+        assertEquals(5, validUser.getFailedAttempts());
+        assertFalse(validUser.getAccountNonLocked());
+        assertNotNull(validUser.getLockedUntil());
+        assertTrue(validUser.getLockedUntil().isAfter(LocalDateTime.now()));
+    }
+
+    @Test
+    void handle_shouldThrowAccountLockedWhenAlreadyLocked() {
+        validUser.setAccountNonLocked(false);
+        validUser.setLockedUntil(LocalDateTime.now().plusMinutes(10));
+        when(userRepository.findByEmail(validCommand.email())).thenReturn(Optional.of(validUser));
+
+        assertThrows(AccountLockedException.class, () -> loginHandler.handle(validCommand));
+        verify(authenticationManager, never()).authenticate(any());
+    }
+
+    @Test
+    void handle_shouldAutoUnlockWhenLockWindowExpired() {
+        validUser.setAccountNonLocked(false);
+        validUser.setFailedAttempts(5);
+        validUser.setLockedUntil(LocalDateTime.now().minusMinutes(1));
+        when(userRepository.findByEmail(validCommand.email())).thenReturn(Optional.of(validUser));
+        when(jwtService.generateAccessToken(validUser)).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(validUser)).thenReturn("refresh-token");
+        when(jwtService.extractExpiration("refresh-token")).thenReturn(java.util.Date.from(java.time.Instant.now().plusSeconds(3600)));
+        when(refreshTokenRepository.findByUser(validUser)).thenReturn(List.of());
+
+        LoginHandler.TokenResult result = loginHandler.handle(validCommand);
+
+        assertNotNull(result);
+        assertTrue(validUser.getAccountNonLocked());
+        assertEquals(0, validUser.getFailedAttempts());
+        assertNull(validUser.getLockedUntil());
+        verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
     }
 
     @Test

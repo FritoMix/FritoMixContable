@@ -77,7 +77,6 @@ class OrderServiceTest {
                 .customerId(1L)
                 .userId(1L)
                 .orderNumber("ORD-001")
-                .total(new BigDecimal("100.00"))
                 .details(List.of(
                         OrderRequest.OrderDetailRequest.builder()
                                 .productId(1L)
@@ -91,7 +90,7 @@ class OrderServiceTest {
                 .customer(customer)
                 .userId(1L)
                 .orderNumber("ORD-001")
-                .total(new BigDecimal("100.00"))
+                .total(new BigDecimal("10"))
                 .build();
     }
 
@@ -117,5 +116,47 @@ class OrderServiceTest {
 
         assertThrows(IllegalArgumentException.class, () -> orderService.create(validRequest));
         verify(customerRepository, never()).findById(any());
+    }
+
+    @Test
+    void update_shouldThrowWhenOrderNotPending() {
+        order.setStatus("APROBADO");
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertThrows(IllegalArgumentException.class, () -> orderService.update(1L, validRequest));
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void updateStatus_shouldThrowOnBackwardTransition() {
+        order.setStatus("APROBADO");
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertThrows(IllegalArgumentException.class, () -> orderService.updateStatus(1L, "PENDIENTE"));
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void updateStatus_shouldAllowApprovalFromPending() {
+        order.setStatus("PENDIENTE");
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
+        when(mapper.toResponse(any(Order.class))).thenReturn(
+                OrderResponse.builder().id(1L).orderNumber("ORD-001").status("APROBADO").build());
+
+        OrderResponse response = orderService.updateStatus(1L, "APROBADO");
+
+        assertNotNull(response);
+        assertEquals("APROBADO", response.status());
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void delete_shouldThrowWhenOrderClosed() {
+        order.setStatus("CANCELADO");
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertThrows(IllegalArgumentException.class, () -> orderService.delete(1L));
+        verify(orderRepository, never()).delete(any());
     }
 }

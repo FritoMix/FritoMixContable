@@ -1,9 +1,11 @@
 package com.fritomix.erp.security.config;
 
 import com.fritomix.erp.security.filter.JwtAuthenticationFilter;
+import com.fritomix.erp.security.filter.LoginRateLimitFilter;
 import com.fritomix.erp.security.handler.JwtAccessDeniedHandler;
 import com.fritomix.erp.security.handler.JwtAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -25,7 +27,14 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    LoginRateLimitFilter loginRateLimitFilter(
+            @Value("${app.security.login-rate-limit.max-attempts:5}") int maxAttempts,
+            @Value("${app.security.login-rate-limit.window-seconds:60}") long windowSeconds) {
+        return new LoginRateLimitFilter(maxAttempts, windowSeconds);
+    }
+
+    @Bean
+    SecurityFilterChain securityFilterChain(HttpSecurity http, LoginRateLimitFilter loginRateLimitFilter) throws Exception {
 
         http
                 .cors(Customizer.withDefaults())
@@ -49,6 +58,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)
                         .authenticationEntryPoint(authenticationEntryPoint))
 
+                .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
