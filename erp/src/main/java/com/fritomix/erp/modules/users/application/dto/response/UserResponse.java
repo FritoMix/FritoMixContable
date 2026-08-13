@@ -13,6 +13,7 @@ public record UserResponse(
         String role,
         Boolean enabled,
         Boolean accountNonLocked,
+        Integer failedAttempts,
         Boolean accountNonExpired,
         Boolean credentialsNonExpired,
         LocalDateTime lastLogin,

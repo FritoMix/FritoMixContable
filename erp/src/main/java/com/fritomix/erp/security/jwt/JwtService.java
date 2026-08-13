@@ -1,18 +1,20 @@
 package com.fritomix.erp.security.jwt;
 
 import com.fritomix.erp.modules.auth.application.dto.JwtUserInfo;
+import com.fritomix.erp.modules.auth.domain.entity.Permission;
 import com.fritomix.erp.modules.auth.domain.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -72,6 +74,10 @@ public class JwtService {
         claims.put("role", user.getRole().getName());
         claims.put("firstName", user.getFirstName());
         claims.put("lastName", user.getLastName());
+        List<String> permissions = user.getRole().getPermissions().stream()
+                .map(Permission::getName)
+                .toList();
+        claims.put("permissions", permissions);
         claims.put("jti", UUID.randomUUID().toString());
 
         Date now = new Date();
@@ -95,21 +101,23 @@ public class JwtService {
      * ============================================================
      */
 
-    public String extractUsername(String token) {
-
-        return extractClaim(token, Claims::getSubject);
-    }
-
+    @SuppressWarnings("unchecked")
     public JwtUserInfo extractUserInfo(String token) {
 
         Claims claims = extractAllClaims(token);
+
+        List<String> permissions = claims.get("permissions", ArrayList.class);
+        if (permissions == null) {
+            permissions = List.of();
+        }
 
         return new JwtUserInfo(
                 claims.get("userId", Long.class),
                 claims.getSubject(),
                 claims.get("role", String.class),
                 claims.get("firstName", String.class),
-                claims.get("lastName", String.class)
+                claims.get("lastName", String.class),
+                permissions
         );
     }
 
@@ -145,23 +153,6 @@ public class JwtService {
      * VALIDACIONES
      * ============================================================
      */
-
-    public boolean isTokenExpired(String token) {
-
-        return extractExpiration(token)
-                .before(new Date());
-    }
-
-    public boolean isTokenValid(
-            String token,
-            UserDetails userDetails
-    ) {
-
-        String username = extractUsername(token);
-
-        return username.equals(userDetails.getUsername())
-                && !isTokenExpired(token);
-    }
 
     public String extractToken(HttpServletRequest request){
         String header = request.getHeader("Authorization");

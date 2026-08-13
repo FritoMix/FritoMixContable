@@ -9,6 +9,7 @@ import com.fritomix.erp.modules.notifications.application.dto.response.Notificat
 import com.fritomix.erp.modules.notifications.domain.entity.Notification;
 import com.fritomix.erp.modules.notifications.domain.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,13 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final EmailService emailService;
+
+    @Value("${app.notifications.email-enabled:true}")
+    private boolean emailEnabled;
+
+    @Value("${app.frontend-url:http://localhost:4200}")
+    private String frontendUrl;
 
     @Transactional(readOnly = true)
     public List<NotificationResponse> findRecentByUserId(Long userId) {
@@ -47,6 +55,7 @@ public class NotificationService {
                 .link(request.link())
                 .build();
         notificationRepository.save(notification);
+        sendEmailNotification(user, request.title(), request.message(), request.link());
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -62,8 +71,20 @@ public class NotificationService {
                         .link(link)
                         .build();
                 notificationRepository.save(notification);
+                sendEmailNotification(user, title, message, link);
             }
         }
+    }
+
+    private void sendEmailNotification(User user, String title, String message, String link) {
+        if (!emailEnabled || user.getEmail() == null || user.getEmail().isBlank()) {
+            return;
+        }
+        String body = message;
+        if (link != null && !link.isBlank()) {
+            body += "\n\nVer más: " + frontendUrl + link;
+        }
+        emailService.sendEmail(user.getEmail(), "[FritoMix] " + title, body);
     }
 
     @Transactional

@@ -52,7 +52,8 @@ public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
                                        @Param("hasta") LocalDateTime hasta);
 
     @Query("SELECT DISTINCT d FROM Dispatch d " +
-           "JOIN FETCH d.orders " +
+           "JOIN FETCH d.orders o " +
+           "JOIN FETCH o.customer " +
            "JOIN FETCH d.driver " +
            "JOIN FETCH d.vehicle " +
            "WHERE d.status = :status " +

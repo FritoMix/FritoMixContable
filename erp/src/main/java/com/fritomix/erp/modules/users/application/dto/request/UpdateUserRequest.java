@@ -16,7 +16,6 @@ public record UpdateUserRequest(
         @Size(max = 150)
         String email,
 
-        @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres")
         String password,
 
         String role,

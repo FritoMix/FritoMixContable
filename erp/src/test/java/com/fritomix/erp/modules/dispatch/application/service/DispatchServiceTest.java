@@ -75,7 +75,7 @@ class DispatchServiceTest {
     @BeforeEach
     void setUp() {
         Category category = Category.builder().id(1L).name("Test").build();
-        product = Product.builder().id(1L).code("PROD-001").name("Test Product").category(category).unit("CAJA").stock(100).build();
+        product = Product.builder().id(1L).code("PROD-001").name("Test Product").category(category).unit("CAJA").build();
 
         order = Order.builder().id(1L).orderNumber("ORD-001").build();
         driver = Driver.builder().id(1L).name("Test Driver").build();
@@ -103,7 +103,7 @@ class DispatchServiceTest {
                 .driverId(1L)
                 .vehicleId(1L)
                 .dispatchNumber("DES-001")
-                .status("LISTO_CARGUE")
+                .status("PENDIENTE")
                 .details(List.of(
                         DispatchRequest.DispatchDetailRequest.builder()
                                 .productId(1L)
@@ -163,10 +163,37 @@ class DispatchServiceTest {
 
     @Test
     void delete_shouldSucceed() {
-        when(dispatchRepository.existsById(1L)).thenReturn(true);
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(dispatch));
 
         dispatchService.delete(1L);
 
-        verify(dispatchRepository).deleteById(1L);
+        verify(dispatchRepository).delete(dispatch);
+    }
+
+    @Test
+    void delete_shouldThrowWhenDispatchDespachado() {
+        dispatch.setStatus("DESPACHADO");
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(dispatch));
+
+        assertThrows(IllegalArgumentException.class, () -> dispatchService.delete(1L));
+        verify(dispatchRepository, never()).delete(any());
+    }
+
+    @Test
+    void update_shouldThrowWhenDispatchDespachado() {
+        dispatch.setStatus("DESPACHADO");
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(dispatch));
+
+        assertThrows(IllegalArgumentException.class, () -> dispatchService.update(1L, validRequest));
+        verify(dispatchRepository, never()).save(any());
+    }
+
+    @Test
+    void updateStatus_shouldThrowOnBackwardTransition() {
+        dispatch.setStatus("PRODUCCION");
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(dispatch));
+
+        assertThrows(IllegalArgumentException.class, () -> dispatchService.updateStatus(1L, "PENDIENTE"));
+        verify(dispatchRepository, never()).save(any());
     }
 }

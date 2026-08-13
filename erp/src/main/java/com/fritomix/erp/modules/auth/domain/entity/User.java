@@ -42,6 +42,12 @@ public class User extends BaseEntity {
     @Column(name = "account_non_locked", nullable = false)
     private Boolean accountNonLocked = true;
 
+    @Column(name = "failed_attempts", nullable = false)
+    private Integer failedAttempts = 0;
+
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;
+
     @Column(name = "account_non_expired", nullable = false)
     private Boolean accountNonExpired = true;
 
