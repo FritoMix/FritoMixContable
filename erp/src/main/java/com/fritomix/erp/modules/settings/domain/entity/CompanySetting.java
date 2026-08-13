@@ -57,6 +57,9 @@ public class CompanySetting {
     @Column(name = "max_login_attempts", nullable = false)
     private Integer maxLoginAttempts;
 
+    @Column(name = "lock_duration_minutes", nullable = false)
+    private Integer lockDurationMinutes;
+
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
@@ -67,6 +70,7 @@ public class CompanySetting {
         if (passwordExpirationDays == null) passwordExpirationDays = 90;
         if (sessionTimeoutMinutes == null) sessionTimeoutMinutes = 60;
         if (maxLoginAttempts == null) maxLoginAttempts = 5;
+        if (lockDurationMinutes == null) lockDurationMinutes = 15;
         updatedAt = LocalDateTime.now();
     }
 

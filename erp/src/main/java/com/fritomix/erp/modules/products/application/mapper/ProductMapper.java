@@ -15,8 +15,6 @@ public class ProductMapper {
                 .description(product.getDescription())
                 .unit(product.getUnit())
                 .active(product.getActive())
-                .price(product.getPrice())
-                .cost(product.getCost())
                 .presentation(product.getPresentation())
                 .weight(product.getWeight())
                 .weightGrams(product.getWeightGrams())
@@ -25,7 +23,6 @@ public class ProductMapper {
                 .pesoUnidad(product.getPesoUnidad())
                 .dimension(product.getDimension())
                 .pesoTotalCargue(product.getPesoTotalCargue())
-                .stock(product.getStock())
                 .createdAt(product.getCreatedAt())
                 .build();
     }

@@ -18,7 +18,7 @@ public class RefreshToken extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 500, unique = true)
+    @Column(nullable = false, length = 2048, unique = true)
     private String token;
 
     @ManyToOne(fetch = FetchType.LAZY)

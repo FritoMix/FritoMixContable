@@ -70,6 +70,12 @@ public class UserController {
         return ResponseEntity.ok(userService.toggleEnabled(id));
     }
 
+    @PatchMapping("/{id}/unlock")
+    @PreAuthorize("hasAuthority('PERMISSION_USERS_MANAGE_STATUS')")
+    public ResponseEntity<UserResponse> unlock(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.unlock(id));
+    }
+
     private String getCurrentUserEmail() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
     }

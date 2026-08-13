@@ -28,12 +28,19 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class OrderService {
+
+    private static final Set<String> ALLOWED_ORDER_STATUS = Set.of("PENDIENTE", "APROBADO", "CANCELADO");
+    private static final Set<String> CLOSED_ORDER_STATUS = Set.of("APROBADO", "CANCELADO");
+    private static final String STATUS_PENDIENTE = "PENDIENTE";
+    private static final String STATUS_APROBADO = "APROBADO";
+    private static final String STATUS_CANCELADO = "CANCELADO";
 
     private final OrderRepository orderRepository;
     private final OrderDetailRepository detailRepository;
@@ -76,15 +83,7 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public String generateNextOrderNumber() {
-        int max = 0;
-        for (String orderNumber : orderRepository.findAllPedNumbers()) {
-            if (orderNumber == null) continue;
-            try {
-                int num = Integer.parseInt(orderNumber.substring(4));
-                if (num > max) max = num;
-            } catch (NumberFormatException | IndexOutOfBoundsException ignored) {
-            }
-        }
+        int max = orderRepository.maxOrderNumber();
         return String.format("PED-%05d", max + 1);
     }
 
@@ -105,12 +104,12 @@ public class OrderService {
                 .userId(request.userId())
                 .orderNumber(orderNumber)
                 .orderDate(request.orderDate() != null ? request.orderDate() : java.time.LocalDateTime.now())
-                .status(request.status() != null ? request.status() : "PENDIENTE")
-                .total(request.total())
+                .status(request.status() != null ? request.status() : STATUS_PENDIENTE)
                 .notes(request.notes())
                 .build();
 
         BigDecimal pesoTotal = BigDecimal.ZERO;
+        BigDecimal totalBultos = BigDecimal.ZERO;
 
         if (request.details() != null) {
             for (OrderRequest.OrderDetailRequest dto : request.details()) {
@@ -121,10 +120,9 @@ public class OrderService {
                         .order(order)
                         .product(product)
                         .quantity(dto.quantity())
-                        .price(BigDecimal.ZERO)
-                        .subtotal(BigDecimal.ZERO)
                         .build();
                 order.getDetails().add(detail);
+                totalBultos = totalBultos.add(dto.quantity());
 
                 if (product.getPesoTotalCargue() != null) {
                     pesoTotal = pesoTotal.add(product.getPesoTotalCargue().multiply(dto.quantity()));
@@ -133,6 +131,7 @@ public class OrderService {
         }
 
         order.setPesoTotalCargue(pesoTotal);
+        order.setTotal(totalBultos);
         order = orderRepository.save(order);
 
         try {
@@ -178,6 +177,10 @@ public class OrderService {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado con id: " + id));
 
+        if (!STATUS_PENDIENTE.equals(order.getStatus())) {
+            throw new IllegalArgumentException("Solo se pueden editar pedidos en estado PENDIENTE");
+        }
+
         if (request.customerId() != null && !request.customerId().equals(order.getCustomer().getId())) {
             Customer customer = customerRepository.findById(request.customerId())
                     .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado con id: " + request.customerId()));
@@ -192,13 +195,15 @@ public class OrderService {
         }
 
         if (request.userId() != null) order.setUserId(request.userId());
-        if (request.status() != null) order.setStatus(request.status());
-        if (request.total() != null) order.setTotal(request.total());
+        if (request.status() != null && !request.status().equalsIgnoreCase(order.getStatus())) {
+            throw new IllegalArgumentException("El estado del pedido solo cambia por aprobación o cancelación");
+        }
         if (request.notes() != null) order.setNotes(request.notes());
 
         if (request.details() != null) {
             order.getDetails().clear();
             BigDecimal pesoTotal = BigDecimal.ZERO;
+            BigDecimal totalBultos = BigDecimal.ZERO;
             for (OrderRequest.OrderDetailRequest dto : request.details()) {
                 Product product = productRepository.findById(dto.productId())
                         .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con id: " + dto.productId()));
@@ -206,16 +211,16 @@ public class OrderService {
                         .order(order)
                         .product(product)
                         .quantity(dto.quantity())
-                        .price(BigDecimal.ZERO)
-                        .subtotal(BigDecimal.ZERO)
                         .build();
                 order.getDetails().add(detail);
+                totalBultos = totalBultos.add(dto.quantity());
 
                 if (product.getPesoTotalCargue() != null) {
                     pesoTotal = pesoTotal.add(product.getPesoTotalCargue().multiply(dto.quantity()));
                 }
             }
             order.setPesoTotalCargue(pesoTotal);
+            order.setTotal(totalBultos);
         }
 
         order = orderRepository.save(order);
@@ -224,10 +229,12 @@ public class OrderService {
 
     @Transactional
     public void delete(Long id) {
-        if (!orderRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Pedido no encontrado con id: " + id);
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado con id: " + id));
+        if (CLOSED_ORDER_STATUS.contains(order.getStatus())) {
+            throw new IllegalArgumentException("No se puede eliminar un pedido en estado " + order.getStatus());
         }
-        orderRepository.deleteById(id);
+        orderRepository.delete(order);
     }
 
     @Transactional
@@ -236,14 +243,17 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado con id: " + id));
 
         String newStatus = status != null ? status.toUpperCase() : null;
-        if (!List.of("PENDIENTE", "APROBADO", "CANCELADO").contains(newStatus)) {
+        if (!ALLOWED_ORDER_STATUS.contains(newStatus)) {
             throw new IllegalArgumentException("Estado inválido para el pedido: " + status);
+        }
+        if (!validOrderTransition(order.getStatus(), newStatus)) {
+            throw new IllegalArgumentException("No se puede cambiar el pedido de " + order.getStatus() + " a " + newStatus);
         }
         order.setStatus(newStatus);
         order = orderRepository.save(order);
 
         try {
-            if ("APROBADO".equals(newStatus)) {
+            if (STATUS_APROBADO.equals(newStatus)) {
                 notificationService.createForRoles(
                         "Pedido aprobado",
                         "El pedido " + order.getOrderNumber() + " fue aprobado y está listo para despacho.",
@@ -265,5 +275,16 @@ public class OrderService {
         }
 
         return mapper.toResponse(order);
+    }
+
+    private boolean validOrderTransition(String current, String next) {
+        if (current.equals(next)) {
+            return true;
+        }
+        return switch (current) {
+            case STATUS_PENDIENTE -> next.equals(STATUS_APROBADO) || next.equals(STATUS_CANCELADO);
+            case STATUS_APROBADO -> next.equals(STATUS_CANCELADO);
+            default -> false;
+        };
     }
 }

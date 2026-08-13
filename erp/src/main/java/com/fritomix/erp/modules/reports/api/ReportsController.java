@@ -2,8 +2,8 @@ package com.fritomix.erp.modules.reports.api;
 
 import com.fritomix.erp.modules.notifications.application.dto.request.NotificationRequest;
 import com.fritomix.erp.modules.notifications.application.service.NotificationService;
+import com.fritomix.erp.modules.auth.application.dto.JwtUserInfo;
 import com.fritomix.erp.modules.reports.application.ReportsService;
-import com.fritomix.erp.security.service.CustomUserDetails;
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfPCell;
@@ -96,9 +96,9 @@ public class ReportsController {
 
         try {
             var auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
+            if (auth != null && auth.getPrincipal() instanceof JwtUserInfo userInfo) {
                 notificationService.create(NotificationRequest.builder()
-                        .userId(userDetails.getUser().getId())
+                        .userId(userInfo.userId())
                         .title("Reporte generado")
                         .message("Se generó el reporte " + type + " en PDF.")
                         .type("INFO")
