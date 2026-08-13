@@ -25,6 +25,28 @@ public class SettingService {
         return mapper.toResponse(setting);
     }
 
+    @Transactional(readOnly = true)
+    public SecurityPolicy getSecurityPolicy() {
+        return repository.findAll().stream()
+                .findFirst()
+                .map(s -> new SecurityPolicy(
+                        s.getPasswordMinLength() != null ? s.getPasswordMinLength() : 8,
+                        s.getPasswordRequireSpecial() != null ? s.getPasswordRequireSpecial() : true,
+                        s.getMaxLoginAttempts() != null ? s.getMaxLoginAttempts() : 5,
+                        s.getLockDurationMinutes() != null ? s.getLockDurationMinutes() : 15))
+                .orElseGet(SecurityPolicy::new);
+    }
+
+    public record SecurityPolicy(int passwordMinLength, boolean passwordRequireSpecial, int maxLoginAttempts, int lockDurationMinutes) {
+        public SecurityPolicy(int passwordMinLength, boolean passwordRequireSpecial, int maxLoginAttempts) {
+            this(passwordMinLength, passwordRequireSpecial, maxLoginAttempts, 15);
+        }
+
+        public SecurityPolicy() {
+            this(8, true, 5, 15);
+        }
+    }
+
     @Transactional
     public SettingResponse update(SettingRequest request) {
         CompanySetting setting = repository.findAll().stream()

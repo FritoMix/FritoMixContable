@@ -2,7 +2,7 @@ logging:
   file:
     name: /tmp/erp.log
   level:
-    com.fritomix: DEBUG
+    com.fritomix: INFO
 
 spring:
 
@@ -15,7 +15,7 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: false
 
   flyway:
     enabled: true
@@ -36,13 +36,20 @@ spring:
 
   security:
     jwt:
-      secret: ${JWT_SECRET:uiitDhPY8NyEuQl8Ak7yw5SuascSN+vAnQZy83C2GHev9uTjVgsjUFaNYzzbAe5/x5xnZkV70VHFkSh8rg6/Ug==}
+      secret: ${JWT_SECRET:ZGV2LW9ubHktc2VjcmV0LW5vdC12YWxpZC1mb3ItcHJvZA==}
       access-token-expiration: 28800000
       refresh-token-expiration: 604800000
 
 app:
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:4200}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
   cookie:
     secure: ${APP_COOKIE_SECURE:false}
     same-site: ${APP_COOKIE_SAME_SITE:lax}
+  security:
+    login-rate-limit:
+      max-attempts: 5
+      window-seconds: 60
+  notifications:
+    email-enabled: ${NOTIFICATIONS_EMAIL_ENABLED:true}
