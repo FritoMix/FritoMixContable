@@ -18,7 +18,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Component
@@ -69,9 +68,9 @@ public class OrderMapper {
             coordinatorName = (user.getFirstName() + " " + user.getLastName()).trim();
         }
 
-        Optional<Dispatch> dispatchOpt = dispatchRepository.findByOrderId(order.getId());
-        if (dispatchOpt.isPresent()) {
-            Dispatch d = dispatchOpt.get();
+        List<Dispatch> dispatches = dispatchRepository.findAllByOrderId(order.getId());
+        if (!dispatches.isEmpty()) {
+            Dispatch d = dispatches.get(0);
             if (d.getDriver() != null) {
                 dispatchDriverName = d.getDriver().getName();
                 dispatchDriverDocument = d.getDriver().getDocument();
