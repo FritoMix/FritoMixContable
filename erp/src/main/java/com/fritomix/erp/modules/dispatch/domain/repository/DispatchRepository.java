@@ -6,19 +6,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
     Optional<Dispatch> findByDispatchNumber(String dispatchNumber);
     boolean existsByDispatchNumber(String dispatchNumber);
-    @Query("SELECT d FROM Dispatch d " +
-           "JOIN d.orders o " +
-           "JOIN FETCH d.driver " +
-           "JOIN FETCH d.vehicle " +
-           "WHERE o.id = :orderId")
-    Optional<Dispatch> findByOrderId(Long orderId);
 
     @Query("SELECT DISTINCT d FROM Dispatch d " +
            "JOIN FETCH d.orders " +
@@ -34,13 +27,6 @@ public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
            "WHERE o.id = :orderId " +
            "ORDER BY d.dispatchDate DESC")
     List<Dispatch> findAllByOrderId(@Param("orderId") Long orderId);
-
-    @Query("SELECT d FROM Dispatch d " +
-           "JOIN d.orders o " +
-           "WHERE o.id = :orderId " +
-           "AND d.status NOT IN :closedStatuses")
-    List<Dispatch> findActiveByOrderId(@Param("orderId") Long orderId,
-                                       @Param("closedStatuses") Collection<String> closedStatuses);
 
     @Query("SELECT DISTINCT d FROM Dispatch d " +
            "JOIN FETCH d.orders " +

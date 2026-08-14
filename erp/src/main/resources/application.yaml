@@ -27,6 +27,8 @@ spring:
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
+    api-key: ${MAIL_API_KEY:}
+    from: ${MAIL_FROM:}
     properties:
       mail:
         smtp:
