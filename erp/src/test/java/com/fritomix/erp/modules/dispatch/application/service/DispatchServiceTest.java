@@ -31,7 +31,6 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -117,7 +116,7 @@ class DispatchServiceTest {
     void create_shouldSucceed() {
         when(dispatchRepository.existsByDispatchNumber("DES-001")).thenReturn(false);
         when(orderRepository.findAllById(List.of(1L))).thenReturn(List.of(order));
-        when(dispatchRepository.findActiveByOrderId(eq(1L), anyCollection())).thenReturn(List.of());
+        when(dispatchRepository.findAllByOrderId(eq(1L))).thenReturn(List.of());
         when(driverRepository.findById(1L)).thenReturn(Optional.of(driver));
         when(vehicleRepository.findById(1L)).thenReturn(Optional.of(vehicle));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
@@ -143,7 +142,7 @@ class DispatchServiceTest {
     void create_shouldThrowWhenOrderAlreadyHasActiveDispatch() {
         when(dispatchRepository.existsByDispatchNumber("DES-001")).thenReturn(false);
         when(orderRepository.findAllById(List.of(1L))).thenReturn(List.of(order));
-        when(dispatchRepository.findActiveByOrderId(eq(1L), anyCollection())).thenReturn(List.of(dispatch));
+        when(dispatchRepository.findAllByOrderId(eq(1L))).thenReturn(List.of(dispatch));
 
         assertThrows(PedidoYaDespachadoException.class, () -> dispatchService.create(validRequest));
         verify(driverRepository, never()).findById(any());
