@@ -307,13 +307,13 @@ public class DispatchService {
 
     private void validateNoActiveDispatch(List<Order> orders, Long excludeDispatchId) {
         for (Order order : orders) {
-            List<Dispatch> active = dispatchRepository.findActiveByOrderId(order.getId(), STATUS_CERRADOS);
-            for (Dispatch d : active) {
+            for (Dispatch d : dispatchRepository.findAllByOrderId(order.getId())) {
                 if (excludeDispatchId != null && d.getId().equals(excludeDispatchId)) {
                     continue;
                 }
                 throw new PedidoYaDespachadoException(
-                        "El pedido " + order.getOrderNumber() + " ya tiene un despacho activo: " + d.getDispatchNumber());
+                        "El pedido " + order.getOrderNumber() + " ya fue despachado (" + d.getDispatchNumber()
+                                + ") y no puede despacharse de nuevo.");
             }
         }
     }
