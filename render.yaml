@@ -28,6 +28,10 @@ services:
         sync: false
       - key: MAIL_PASSWORD
         sync: false
+      - key: MAIL_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
       - key: APP_FRONTEND_URL
         value: https://fritomix.com
       - key: NOTIFICATIONS_EMAIL_ENABLED
