@@ -27,6 +27,7 @@ public record DispatchResponse(
         String status,
         String cumplimiento,
         String notes,
+        String numeroFactura,
         String dispatchUserName,
         List<DispatchDetailResponse> details,
         List<ArrumeResponse> arrumes,
@@ -38,8 +39,10 @@ public record DispatchResponse(
             Long id,
             String orderNumber,
             String clientName,
-            BigDecimal pesoTotalCargue
+            BigDecimal pesoTotalCargue,
+            String numeroFactura
     ) {}
+
 
     @Builder
     public record DispatchDetailResponse(

@@ -1,5 +1,6 @@
 package com.fritomix.erp.modules.customers.application.service;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.exception.ResourceNotFoundException;
 import com.fritomix.erp.modules.customers.application.dto.request.CustomerRequest;
 import com.fritomix.erp.modules.customers.application.dto.response.CustomerResponse;
@@ -11,10 +12,14 @@ import com.fritomix.erp.modules.customers.domain.repository.CityRepository;
 import com.fritomix.erp.modules.customers.domain.repository.CustomerAddressRepository;
 import com.fritomix.erp.modules.customers.domain.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,17 +32,16 @@ public class CustomerService {
     private final CustomerMapper mapper;
 
     @Transactional(readOnly = true)
-    public List<CustomerResponse> findAll() {
-        List<Customer> customers = customerRepository.findAll();
-        List<Long> ids = customers.stream().map(Customer::getId).toList();
-        java.util.Map<Long, CustomerAddress> addrMap = new java.util.HashMap<>();
+    public PageResponse<CustomerResponse> findAll(String search, Pageable pageable) {
+        String term = StringUtils.hasText(search) ? "%" + search.trim() + "%" : null;
+        Page<Customer> page = customerRepository.search(term, pageable);
+        List<Long> ids = page.getContent().stream().map(Customer::getId).toList();
+        Map<Long, CustomerAddress> addrMap = new java.util.HashMap<>();
         if (!ids.isEmpty()) {
             addressRepository.findAllMainByCustomerIds(ids)
                     .forEach(a -> addrMap.putIfAbsent(a.getCustomer().getId(), a));
         }
-        return customers.stream()
-                .map(c -> mapper.toResponse(c, addrMap.get(c.getId())))
-                .collect(Collectors.toList());
+        return PageResponse.from(page, c -> mapper.toResponse(c, addrMap.get(c.getId())));
     }
 
     @Transactional(readOnly = true)

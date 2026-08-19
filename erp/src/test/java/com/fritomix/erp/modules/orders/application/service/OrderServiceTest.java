@@ -48,6 +48,12 @@ class OrderServiceTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private OrderNotifier orderNotifier;
+
+    @Mock
+    private OrderDetailCalculator detailCalculator;
+
     @InjectMocks
     private OrderService orderService;
 
@@ -98,7 +104,6 @@ class OrderServiceTest {
     void create_shouldSucceed() {
         when(orderRepository.existsByOrderNumber("ORD-001")).thenReturn(false);
         when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
         when(mapper.toResponse(any(Order.class))).thenReturn(
                 OrderResponse.builder().id(1L).orderNumber("ORD-001").build());
