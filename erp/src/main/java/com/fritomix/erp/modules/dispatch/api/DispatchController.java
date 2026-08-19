@@ -1,10 +1,14 @@
 package com.fritomix.erp.modules.dispatch.api;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.modules.dispatch.application.dto.request.DispatchRequest;
 import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse;
 import com.fritomix.erp.modules.dispatch.application.service.DispatchService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,8 +27,10 @@ public class DispatchController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('PERMISSION_DISPATCHES_VIEW')")
-    public ResponseEntity<List<DispatchResponse>> findAll() {
-        return ResponseEntity.ok(dispatchService.findAll());
+    public ResponseEntity<PageResponse<DispatchResponse>> findAll(
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 20, sort = "dispatchDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(dispatchService.findAll(search, pageable));
     }
 
     @GetMapping("/{id}")
@@ -66,9 +72,10 @@ public class DispatchController {
 
     @GetMapping("/historial")
     @PreAuthorize("hasAuthority('PERMISSION_DISPATCHES_VIEW')")
-    public ResponseEntity<List<DispatchResponse>> historyByRange(
+    public ResponseEntity<PageResponse<DispatchResponse>> historyByRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta) {
-        return ResponseEntity.ok(dispatchService.findByDateRange(desde, hasta));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta,
+            @PageableDefault(size = 20, sort = "dispatchDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(dispatchService.findByDateRange(desde, hasta, pageable));
     }
 }

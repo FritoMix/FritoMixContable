@@ -50,6 +50,7 @@ app:
     secure: ${APP_COOKIE_SECURE:false}
     same-site: ${APP_COOKIE_SAME_SITE:lax}
   security:
+    expose-api-docs: ${EXPOSE_API_DOCS:true}
     login-rate-limit:
       max-attempts: 5
       window-seconds: 60

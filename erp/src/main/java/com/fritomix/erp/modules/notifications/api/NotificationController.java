@@ -1,15 +1,17 @@
 package com.fritomix.erp.modules.notifications.api;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.modules.auth.application.dto.JwtUserInfo;
 import com.fritomix.erp.modules.notifications.application.dto.response.NotificationResponse;
 import com.fritomix.erp.modules.notifications.application.service.NotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -21,9 +23,10 @@ public class NotificationController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('PERMISSION_NOTIFICATIONS_VIEW')")
-    public ResponseEntity<List<NotificationResponse>> findAll() {
+    public ResponseEntity<PageResponse<NotificationResponse>> findAll(
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         Long userId = getCurrentUserId();
-        return ResponseEntity.ok(notificationService.findRecentByUserId(userId));
+        return ResponseEntity.ok(notificationService.findRecentByUserId(userId, pageable));
     }
 
     @GetMapping("/unread-count")

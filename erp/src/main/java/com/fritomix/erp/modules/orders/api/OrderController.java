@@ -1,16 +1,18 @@
 package com.fritomix.erp.modules.orders.api;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.modules.orders.application.dto.request.OrderRequest;
 import com.fritomix.erp.modules.orders.application.dto.response.OrderResponse;
 import com.fritomix.erp.modules.orders.application.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/orders")
@@ -27,8 +29,11 @@ public class OrderController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('PERMISSION_ORDERS_VIEW')")
-    public ResponseEntity<List<OrderResponse>> findAll() {
-        return ResponseEntity.ok(orderService.findAll());
+    public ResponseEntity<PageResponse<OrderResponse>> findAll(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @PageableDefault(size = 20, sort = "orderDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(orderService.findAll(search, status, pageable));
     }
 
     @GetMapping("/{id}")

@@ -1,5 +1,6 @@
 package com.fritomix.erp.modules.vehicles.application.service;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.exception.ResourceNotFoundException;
 import com.fritomix.erp.modules.vehicles.application.dto.request.VehicleRequest;
 import com.fritomix.erp.modules.vehicles.application.dto.response.VehicleResponse;
@@ -7,11 +8,10 @@ import com.fritomix.erp.modules.vehicles.application.mapper.VehicleMapper;
 import com.fritomix.erp.modules.vehicles.domain.entity.Vehicle;
 import com.fritomix.erp.modules.vehicles.domain.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.stream.Collectors;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -21,10 +21,9 @@ public class VehicleService {
     private final VehicleMapper mapper;
 
     @Transactional(readOnly = true)
-    public List<VehicleResponse> findAll() {
-        return vehicleRepository.findAll().stream()
-                .map(mapper::toResponse)
-                .collect(Collectors.toList());
+    public PageResponse<VehicleResponse> findAll(String search, Pageable pageable) {
+        String term = StringUtils.hasText(search) ? "%" + search.trim() + "%" : null;
+        return PageResponse.from(vehicleRepository.search(term, pageable), mapper::toResponse);
     }
 
     @Transactional(readOnly = true)

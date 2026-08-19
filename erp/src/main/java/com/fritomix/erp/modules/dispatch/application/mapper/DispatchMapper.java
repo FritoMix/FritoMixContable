@@ -40,6 +40,7 @@ public class DispatchMapper {
                         .orderNumber(o.getOrderNumber())
                         .clientName(o.getCustomer() != null ? o.getCustomer().getBusinessName() : null)
                         .pesoTotalCargue(o.getPesoTotalCargue())
+                        .numeroFactura(dispatch.getFacturasPorPedido() != null ? dispatch.getFacturasPorPedido().get(o.getId()) : null)
                         .build())
                 .collect(Collectors.toList());
 
@@ -87,12 +88,14 @@ public class DispatchMapper {
                 .status(dispatch.getStatus())
                 .cumplimiento(dispatch.getCumplimiento())
                 .notes(dispatch.getNotes())
+                .numeroFactura(dispatch.getNumeroFactura())
                 .dispatchUserName(dispatchUserName)
                 .details(details.stream().map(this::toDetailResponse).collect(Collectors.toList()))
                 .arrumes(dispatch.getArrumes() == null
                         ? Collections.emptyList()
                         : dispatch.getArrumes().stream().map(this::toArrumeResponse).collect(Collectors.toList()))
                 .createdAt(dispatch.getCreatedAt());
+
 
         if (firstOrder != null) {
             builder.orderId(firstOrder.getId())

@@ -1,5 +1,6 @@
 package com.fritomix.erp.modules.drivers.application.service;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.exception.ResourceNotFoundException;
 import com.fritomix.erp.modules.drivers.application.dto.request.DriverRequest;
 import com.fritomix.erp.modules.drivers.application.dto.response.DriverResponse;
@@ -7,11 +8,10 @@ import com.fritomix.erp.modules.drivers.application.mapper.DriverMapper;
 import com.fritomix.erp.modules.drivers.domain.entity.Driver;
 import com.fritomix.erp.modules.drivers.domain.repository.DriverRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.stream.Collectors;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -21,10 +21,9 @@ public class DriverService {
     private final DriverMapper mapper;
 
     @Transactional(readOnly = true)
-    public List<DriverResponse> findAll() {
-        return driverRepository.findAll().stream()
-                .map(mapper::toResponse)
-                .collect(Collectors.toList());
+    public PageResponse<DriverResponse> findAll(String search, Pageable pageable) {
+        String term = StringUtils.hasText(search) ? "%" + search.trim() + "%" : null;
+        return PageResponse.from(driverRepository.search(term, pageable), mapper::toResponse);
     }
 
     @Transactional(readOnly = true)

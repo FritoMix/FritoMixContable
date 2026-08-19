@@ -61,6 +61,15 @@ class DispatchServiceTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private jakarta.persistence.EntityManager em;
+
+    @Mock
+    private jakarta.persistence.Query query;
+
+    @Mock
+    private DispatchNotifier dispatchNotifier;
+
     @InjectMocks
     private DispatchService dispatchService;
 
@@ -73,6 +82,10 @@ class DispatchServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(em.createNativeQuery(anyString())).thenReturn(query);
+        lenient().when(query.setParameter(anyString(), any())).thenReturn(query);
+        lenient().when(query.getResultList()).thenReturn(List.of());
+
         Category category = Category.builder().id(1L).name("Test").build();
         product = Product.builder().id(1L).code("PROD-001").name("Test Product").category(category).unit("CAJA").build();
 

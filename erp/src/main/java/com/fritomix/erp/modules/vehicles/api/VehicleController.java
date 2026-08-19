@@ -1,16 +1,17 @@
 package com.fritomix.erp.modules.vehicles.api;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.modules.vehicles.application.dto.request.VehicleRequest;
 import com.fritomix.erp.modules.vehicles.application.dto.response.VehicleResponse;
 import com.fritomix.erp.modules.vehicles.application.service.VehicleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/vehicles")
@@ -21,8 +22,10 @@ public class VehicleController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('PERMISSION_VEHICLES_VIEW')")
-    public ResponseEntity<List<VehicleResponse>> findAll() {
-        return ResponseEntity.ok(vehicleService.findAll());
+    public ResponseEntity<PageResponse<VehicleResponse>> findAll(
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 20, sort = "vehicleNumber") Pageable pageable) {
+        return ResponseEntity.ok(vehicleService.findAll(search, pageable));
     }
 
     @GetMapping("/{id}")

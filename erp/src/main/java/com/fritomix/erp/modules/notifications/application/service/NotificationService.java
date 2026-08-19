@@ -1,5 +1,6 @@
 package com.fritomix.erp.modules.notifications.application.service;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.exception.ResourceNotFoundException;
 import com.fritomix.erp.modules.auth.domain.entity.User;
 import com.fritomix.erp.modules.auth.domain.enums.RoleType;
@@ -10,6 +11,7 @@ import com.fritomix.erp.modules.notifications.domain.entity.Notification;
 import com.fritomix.erp.modules.notifications.domain.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,10 +34,8 @@ public class NotificationService {
     private String frontendUrl;
 
     @Transactional(readOnly = true)
-    public List<NotificationResponse> findRecentByUserId(Long userId) {
-        return notificationRepository.findTop20ByUserIdOrderByCreatedAtDesc(userId).stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+    public PageResponse<NotificationResponse> findRecentByUserId(Long userId, Pageable pageable) {
+        return PageResponse.from(notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable), this::toResponse);
     }
 
     @Transactional(readOnly = true)

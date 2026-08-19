@@ -1,5 +1,6 @@
 package com.fritomix.erp.modules.products.application.service;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.exception.ResourceNotFoundException;
 import com.fritomix.erp.modules.products.application.dto.request.ProductRequest;
 import com.fritomix.erp.modules.products.application.dto.response.ProductResponse;
@@ -9,8 +10,10 @@ import com.fritomix.erp.modules.products.domain.entity.Product;
 import com.fritomix.erp.modules.products.domain.repository.CategoryRepository;
 import com.fritomix.erp.modules.products.domain.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -24,10 +27,9 @@ public class ProductService {
     private final ProductMapper mapper;
 
     @Transactional(readOnly = true)
-    public List<ProductResponse> findAll() {
-        return productRepository.findAll().stream()
-                .map(mapper::toResponse)
-                .toList();
+    public PageResponse<ProductResponse> findAll(String search, Pageable pageable) {
+        String term = StringUtils.hasText(search) ? "%" + search.trim() + "%" : null;
+        return PageResponse.from(productRepository.search(term, pageable), mapper::toResponse);
     }
 
     @Transactional(readOnly = true)
