@@ -37,12 +37,25 @@ public record DispatchRequest(
 
         String notes,
 
+        @Size(max = 50)
+        String numeroFactura,
+
+        List<OrderFacturaRequest> orderFacturas,
+
         @Valid
         List<DispatchDetailRequest> details,
 
         @Valid
         List<ArrumeRequest> arrumes
 ) {
+
+
+    @Builder
+    public record OrderFacturaRequest(
+            Long orderId,
+            String numeroFactura
+    ) {}
+
 
     @Builder
     public record DispatchDetailRequest(

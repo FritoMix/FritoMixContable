@@ -1,11 +1,14 @@
 package com.fritomix.erp.modules.roles.api;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.modules.roles.application.dto.request.CreateRoleRequest;
 import com.fritomix.erp.modules.roles.application.dto.request.UpdateRoleRequest;
 import com.fritomix.erp.modules.roles.application.dto.response.RoleResponse;
 import com.fritomix.erp.modules.roles.application.service.RoleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,8 +25,9 @@ public class RoleController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('PERMISSION_ROLES_VIEW')")
-    public ResponseEntity<List<RoleResponse>> findAll() {
-        return ResponseEntity.ok(roleService.findAll());
+    public ResponseEntity<PageResponse<RoleResponse>> findAll(
+            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+        return ResponseEntity.ok(roleService.findAll(pageable));
     }
 
     @GetMapping("/{id}")
