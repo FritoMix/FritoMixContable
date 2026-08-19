@@ -1,16 +1,17 @@
 package com.fritomix.erp.modules.drivers.api;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.modules.drivers.application.dto.request.DriverRequest;
 import com.fritomix.erp.modules.drivers.application.dto.response.DriverResponse;
 import com.fritomix.erp.modules.drivers.application.service.DriverService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/drivers")
@@ -21,8 +22,10 @@ public class DriverController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('PERMISSION_DRIVERS_VIEW')")
-    public ResponseEntity<List<DriverResponse>> findAll() {
-        return ResponseEntity.ok(driverService.findAll());
+    public ResponseEntity<PageResponse<DriverResponse>> findAll(
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+        return ResponseEntity.ok(driverService.findAll(search, pageable));
     }
 
     @GetMapping("/{id}")

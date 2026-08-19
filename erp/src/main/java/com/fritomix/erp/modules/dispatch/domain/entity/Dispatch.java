@@ -8,7 +8,9 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "dispatches")
@@ -47,6 +49,13 @@ public class Dispatch {
     @Column(name = "dispatch_number", nullable = false, unique = true, length = 50)
     private String dispatchNumber;
 
+    @Column(name = "numero_factura", length = 50)
+    private String numeroFactura;
+
+    @Transient
+    @Builder.Default
+    private Map<Long, String> facturasPorPedido = new HashMap<>();
+
     @Column(name = "dispatch_date", nullable = false)
     private LocalDateTime dispatchDate;
 
@@ -61,6 +70,7 @@ public class Dispatch {
 
     @Column(name = "user_id")
     private Long userId;
+
 
     @Version
     @Column(nullable = false)

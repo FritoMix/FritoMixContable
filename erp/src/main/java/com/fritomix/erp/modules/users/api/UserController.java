@@ -1,18 +1,19 @@
 package com.fritomix.erp.modules.users.api;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.modules.users.application.dto.request.CreateUserRequest;
 import com.fritomix.erp.modules.users.application.dto.request.UpdateUserRequest;
 import com.fritomix.erp.modules.users.application.dto.response.UserResponse;
 import com.fritomix.erp.modules.users.application.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -35,8 +36,10 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('PERMISSION_USERS_VIEW')")
-    public ResponseEntity<List<UserResponse>> findAll() {
-        return ResponseEntity.ok(userService.findAll());
+    public ResponseEntity<PageResponse<UserResponse>> findAll(
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 20, sort = "firstName") Pageable pageable) {
+        return ResponseEntity.ok(userService.findAll(search, pageable));
     }
 
     @GetMapping("/{id}")

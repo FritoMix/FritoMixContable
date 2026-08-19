@@ -2,6 +2,8 @@ package com.fritomix.erp.modules.orders.domain.repository;
 
 import com.fritomix.erp.modules.orders.domain.entity.Order;
 import com.fritomix.erp.modules.orders.domain.entity.OrderDetail;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,6 +15,16 @@ import java.util.Optional;
 public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderNumber(String orderNumber);
     boolean existsByOrderNumber(String orderNumber);
+
+    @Query("""
+            SELECT o FROM Order o
+            WHERE (:search IS NULL
+                   OR LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(o.customer.businessName) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(o.customer.document) LIKE LOWER(CAST(:search AS string)))
+              AND (:status IS NULL OR o.status = :status)
+            """)
+    Page<Order> search(@Param("search") String search, @Param("status") String status, Pageable pageable);
 
     @Query("SELECT DISTINCT o FROM Order o " +
            "JOIN FETCH o.customer " +
