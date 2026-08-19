@@ -1,5 +1,6 @@
 package com.fritomix.erp.modules.roles.application.service;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.exception.ResourceNotFoundException;
 import com.fritomix.erp.modules.auth.domain.entity.Permission;
 import com.fritomix.erp.modules.auth.domain.entity.Role;
@@ -9,10 +10,14 @@ import com.fritomix.erp.modules.roles.application.dto.request.UpdateRoleRequest;
 import com.fritomix.erp.modules.roles.application.dto.response.RoleResponse;
 import com.fritomix.erp.modules.roles.application.mapper.RoleMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,10 +29,19 @@ public class RoleService {
     private final RoleMapper mapper;
 
     @Transactional(readOnly = true)
-    public List<RoleResponse> findAll() {
-        return roleRepository.findAll().stream()
+    public PageResponse<RoleResponse> findAll(Pageable pageable) {
+        Page<Long> ids = roleRepository.findIds(pageable);
+        if (ids.isEmpty()) {
+            return PageResponse.of(List.of(), ids.getNumber(), ids.getSize(), 0, 0);
+        }
+        Map<Long, Role> rolesById = roleRepository.findByIdsWithPermissions(ids.getContent()).stream()
+                .collect(Collectors.toMap(Role::getId, Function.identity()));
+        List<RoleResponse> content = ids.getContent().stream()
+                .map(rolesById::get)
+                .filter(java.util.Objects::nonNull)
                 .map(mapper::toResponse)
-                .collect(Collectors.toList());
+                .toList();
+        return PageResponse.of(content, ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
     }
 
     @Transactional(readOnly = true)

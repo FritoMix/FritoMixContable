@@ -1,5 +1,6 @@
 package com.fritomix.erp.modules.users.application.service;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.modules.auth.domain.entity.Role;
 import com.fritomix.erp.modules.auth.domain.entity.User;
 import com.fritomix.erp.modules.auth.domain.repository.RoleRepository;
@@ -13,6 +14,7 @@ import com.fritomix.erp.modules.users.application.mapper.UserMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +22,6 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -76,10 +77,9 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserResponse> findAll() {
-        return userRepository.findAll().stream()
-                .map(mapper::toResponse)
-                .collect(Collectors.toList());
+    public PageResponse<UserResponse> findAll(String search, Pageable pageable) {
+        String term = StringUtils.hasText(search) ? "%" + search.trim() + "%" : null;
+        return PageResponse.from(userRepository.search(term, pageable), mapper::toResponse);
     }
 
     @Transactional(readOnly = true)

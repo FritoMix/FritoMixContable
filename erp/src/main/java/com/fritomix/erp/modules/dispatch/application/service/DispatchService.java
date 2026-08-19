@@ -1,12 +1,9 @@
 package com.fritomix.erp.modules.dispatch.application.service;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.exception.PedidoYaDespachadoException;
 import com.fritomix.erp.exception.ProductoNotFoundException;
 import com.fritomix.erp.exception.ResourceNotFoundException;
-import com.fritomix.erp.modules.auth.domain.enums.RoleType;
-import java.math.BigDecimal;
-import com.fritomix.erp.modules.auth.domain.entity.User;
-import com.fritomix.erp.modules.auth.domain.repository.UserRepository;
 import com.fritomix.erp.modules.dispatch.application.dto.request.DispatchRequest;
 import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse;
 import com.fritomix.erp.modules.dispatch.application.mapper.DispatchMapper;
@@ -16,9 +13,6 @@ import com.fritomix.erp.modules.dispatch.domain.entity.DispatchDetail;
 import com.fritomix.erp.modules.dispatch.domain.repository.DispatchRepository;
 import com.fritomix.erp.modules.drivers.domain.entity.Driver;
 import com.fritomix.erp.modules.drivers.domain.repository.DriverRepository;
-import com.fritomix.erp.modules.notifications.application.dto.request.NotificationRequest;
-import com.fritomix.erp.modules.notifications.application.service.EmailService;
-import com.fritomix.erp.modules.notifications.application.service.NotificationService;
 import com.fritomix.erp.modules.orders.domain.entity.Order;
 import com.fritomix.erp.modules.orders.domain.repository.OrderRepository;
 import com.fritomix.erp.modules.products.domain.entity.Product;
@@ -26,27 +20,22 @@ import com.fritomix.erp.modules.products.domain.repository.ProductRepository;
 import com.fritomix.erp.modules.vehicles.domain.entity.Vehicle;
 import com.fritomix.erp.modules.vehicles.domain.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import jakarta.persistence.EntityManager;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class DispatchService {
-
-    private static final Set<String> VALID_TIPO_PEDIDO = Set.of("pedido_unico", "pedido_multipedido");
-    private static final Set<String> VALID_STATUS = Set.of(
-            "PENDIENTE", "ELABORACION", "PRODUCCION", "LISTO_CARGUE", "DESPACHADO");
-    private static final List<String> STATUS_FLOW = List.of(
-            "PENDIENTE", "ELABORACION", "PRODUCCION", "LISTO_CARGUE", "DESPACHADO");
-    private static final Set<String> STATUS_CERRADOS = Set.of("DESPACHADO");
-    private static final String CUMPLIMIENTO_COMPLETO = "COMPLETO";
-    private static final String CUMPLIMIENTO_PARCIAL = "PARCIAL";
 
     private final DispatchRepository dispatchRepository;
     private final OrderRepository orderRepository;
@@ -54,22 +43,66 @@ public class DispatchService {
     private final VehicleRepository vehicleRepository;
     private final ProductRepository productRepository;
     private final DispatchMapper mapper;
-    private final UserRepository userRepository;
-    private final NotificationService notificationService;
-    private final EmailService emailService;
+    private final DispatchNotifier dispatchNotifier;
+    private final EntityManager em;
+
+    private void saveFacturasPorPedido(Long dispatchId, List<DispatchRequest.OrderFacturaRequest> orderFacturas) {
+        if (orderFacturas == null || orderFacturas.isEmpty()) return;
+        for (DispatchRequest.OrderFacturaRequest of : orderFacturas) {
+            if (of.orderId() != null) {
+                em.createNativeQuery("UPDATE dispatch_orders SET numero_factura = :numeroFactura WHERE dispatch_id = :dispatchId AND order_id = :orderId")
+                        .setParameter("numeroFactura", of.numeroFactura())
+                        .setParameter("dispatchId", dispatchId)
+                        .setParameter("orderId", of.orderId())
+                        .executeUpdate();
+            }
+        }
+    }
+
+    private Map<Long, String> loadFacturasPorPedido(Long dispatchId) {
+        Map<Long, String> result = new HashMap<>();
+        if (dispatchId == null) return result;
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery("SELECT order_id, numero_factura FROM dispatch_orders WHERE dispatch_id = :dispatchId")
+                .setParameter("dispatchId", dispatchId)
+                .getResultList();
+        for (Object[] row : rows) {
+            if (row[0] != null) {
+                Long orderId = ((Number) row[0]).longValue();
+                String factura = (String) row[1];
+                result.put(orderId, factura);
+            }
+        }
+        return result;
+    }
+
+    private DispatchResponse toResponseWithFacturas(Dispatch dispatch) {
+        dispatch.setFacturasPorPedido(loadFacturasPorPedido(dispatch.getId()));
+        return mapper.toResponse(dispatch);
+    }
 
     @Transactional(readOnly = true)
-    public List<DispatchResponse> findAll() {
-        return dispatchRepository.findAllWithFetch().stream()
-                .map(mapper::toResponse)
-                .collect(Collectors.toList());
+    public PageResponse<DispatchResponse> findAll(String search, Pageable pageable) {
+        String term = StringUtils.hasText(search) ? "%" + search.trim() + "%" : null;
+        Page<Long> ids = dispatchRepository.findIds(term, pageable);
+        if (ids.isEmpty()) {
+            return PageResponse.of(List.of(), ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
+        }
+        Map<Long, Dispatch> byId = dispatchRepository.findAllWithFetchByIds(ids.getContent()).stream()
+                .collect(Collectors.toMap(Dispatch::getId, d -> d));
+        List<DispatchResponse> content = ids.getContent().stream()
+                .map(byId::get)
+                .filter(java.util.Objects::nonNull)
+                .map(this::toResponseWithFacturas)
+                .toList();
+        return PageResponse.of(content, ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
     }
 
     @Transactional(readOnly = true)
     public DispatchResponse findById(Long id) {
         Dispatch dispatch = dispatchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Despacho no encontrado con id: " + id));
-        return mapper.toResponse(dispatch);
+        return toResponseWithFacturas(dispatch);
     }
 
     @Transactional
@@ -79,8 +112,8 @@ public class DispatchService {
         }
 
         String tipoPedido = request.tipoPedido() != null ? request.tipoPedido() : "pedido_unico";
-        if (!VALID_TIPO_PEDIDO.contains(tipoPedido)) {
-            throw new IllegalArgumentException("tipo_pedido inválido. Valores válidos: " + VALID_TIPO_PEDIDO);
+        if (!DispatchFlow.isValidTipoPedido(tipoPedido)) {
+            throw new IllegalArgumentException("tipo_pedido inválido. Valores válidos: " + DispatchFlow.VALID_TIPO_PEDIDO);
         }
 
         List<Order> orders = resolveOrders(request);
@@ -91,10 +124,7 @@ public class DispatchService {
             throw new IllegalArgumentException("Un despacho de tipo pedido_unico debe contener exactamente un pedido");
         }
 
-        String status = request.status() != null ? request.status().toUpperCase() : "PENDIENTE";
-        if (!STATUS_FLOW.subList(0, 2).contains(status)) {
-            throw new IllegalArgumentException("Estado inicial inválido para el despacho: " + request.status());
-        }
+        String status = DispatchFlow.initialStatus(request.status());
 
         validateNoActiveDispatch(orders);
 
@@ -109,7 +139,8 @@ public class DispatchService {
                 .driver(driver)
                 .vehicle(vehicle)
                 .dispatchNumber(request.dispatchNumber())
-                .dispatchDate(request.dispatchDate() != null ? request.dispatchDate() : java.time.LocalDateTime.now())
+                .numeroFactura(request.numeroFactura())
+                .dispatchDate(request.dispatchDate() != null ? request.dispatchDate() : LocalDateTime.now())
                 .status(status)
                 .notes(request.notes())
                 .userId(request.userId())
@@ -144,12 +175,13 @@ public class DispatchService {
             }
         }
 
-        dispatch.setCumplimiento(calcularCumplimiento(dispatch.getDetails()));
+        dispatch.setCumplimiento(DispatchFlow.calcularCumplimiento(dispatch.getDetails()));
 
         dispatch = dispatchRepository.save(dispatch);
-        notifyCreated(dispatch, orders, driver, vehicle, request.userId());
+        saveFacturasPorPedido(dispatch.getId(), request.orderFacturas());
+        dispatchNotifier.notifyCreated(dispatch, orders, driver, vehicle, request.userId());
 
-        return mapper.toResponse(dispatch);
+        return toResponseWithFacturas(dispatch);
     }
 
     @Transactional
@@ -157,13 +189,13 @@ public class DispatchService {
         Dispatch dispatch = dispatchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Despacho no encontrado con id: " + id));
 
-        if (STATUS_CERRADOS.contains(dispatch.getStatus())) {
+        if (DispatchFlow.isClosed(dispatch.getStatus())) {
             throw new IllegalArgumentException("No se puede editar un despacho en estado " + dispatch.getStatus());
         }
 
         String tipoPedido = request.tipoPedido() != null ? request.tipoPedido() : dispatch.getTipoPedido();
-        if (!VALID_TIPO_PEDIDO.contains(tipoPedido)) {
-            throw new IllegalArgumentException("tipo_pedido inválido. Valores válidos: " + VALID_TIPO_PEDIDO);
+        if (!DispatchFlow.isValidTipoPedido(tipoPedido)) {
+            throw new IllegalArgumentException("tipo_pedido inválido. Valores válidos: " + DispatchFlow.VALID_TIPO_PEDIDO);
         }
         dispatch.setTipoPedido(tipoPedido);
 
@@ -189,13 +221,10 @@ public class DispatchService {
         }
 
         if (request.dispatchNumber() != null) dispatch.setDispatchNumber(request.dispatchNumber());
+        if (request.numeroFactura() != null) dispatch.setNumeroFactura(request.numeroFactura());
         if (request.status() != null) {
             String newStatus = request.status().toUpperCase();
-            int currentIdx = STATUS_FLOW.indexOf(dispatch.getStatus());
-            int newIdx = STATUS_FLOW.indexOf(newStatus);
-            if (newIdx < 0 || newIdx < currentIdx) {
-                throw new IllegalArgumentException("Estado inválido o retroceso de flujo para el despacho: " + request.status());
-            }
+            DispatchFlow.validateTransition(dispatch.getStatus(), newStatus);
             dispatch.setStatus(newStatus);
         }
         if (request.notes() != null) dispatch.setNotes(request.notes());
@@ -215,7 +244,7 @@ public class DispatchService {
                         .build();
                 dispatch.getDetails().add(detail);
             }
-            dispatch.setCumplimiento(calcularCumplimiento(dispatch.getDetails()));
+            dispatch.setCumplimiento(DispatchFlow.calcularCumplimiento(dispatch.getDetails()));
         }
 
         if (request.arrumes() != null) {
@@ -233,14 +262,17 @@ public class DispatchService {
         }
 
         dispatch = dispatchRepository.save(dispatch);
-        return mapper.toResponse(dispatch);
+        if (request.orderFacturas() != null) {
+            saveFacturasPorPedido(dispatch.getId(), request.orderFacturas());
+        }
+        return toResponseWithFacturas(dispatch);
     }
 
     @Transactional
     public void delete(Long id) {
         Dispatch dispatch = dispatchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Despacho no encontrado con id: " + id));
-        if (STATUS_CERRADOS.contains(dispatch.getStatus())) {
+        if (DispatchFlow.isClosed(dispatch.getStatus())) {
             throw new IllegalArgumentException("No se puede eliminar un despacho en estado " + dispatch.getStatus());
         }
         dispatchRepository.delete(dispatch);
@@ -251,49 +283,41 @@ public class DispatchService {
         Dispatch dispatch = dispatchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Despacho no encontrado con id: " + id));
         String newStatus = status != null ? status.toUpperCase() : null;
-        if (!VALID_STATUS.contains(newStatus)) {
+        if (!DispatchFlow.isValidStatus(newStatus)) {
             throw new IllegalArgumentException("Estado inválido para el despacho: " + status);
         }
-        int currentIdx = STATUS_FLOW.indexOf(dispatch.getStatus());
-        int newIdx = STATUS_FLOW.indexOf(newStatus);
-        if (newIdx < currentIdx) {
-            throw new IllegalArgumentException("No se puede cambiar el despacho de " + dispatch.getStatus() + " a " + newStatus);
-        }
+        DispatchFlow.validateTransition(dispatch.getStatus(), newStatus);
         dispatch.setStatus(newStatus);
         dispatch = dispatchRepository.save(dispatch);
 
-        try {
-            if ("DESPACHADO".equals(newStatus)) {
-                String orderNumbers = dispatch.getOrders().stream()
-                        .map(Order::getOrderNumber)
-                        .collect(Collectors.joining(", "));
-                notificationService.createForRoles(
-                        "Despacho despachado",
-                        "El despacho " + dispatch.getDispatchNumber() + " fue despachado (pedidos: " + orderNumbers + ").",
-                        "SUCCESS",
-                        "/despachos/" + dispatch.getId(),
-                        RoleType.CARTERA, RoleType.ADMIN
-                );
-            }
-        } catch (Exception e) {
-            log.error("Error al notificar cambio de estado del despacho {}: {}", dispatch.getDispatchNumber(), e.getMessage(), e);
+        if ("DESPACHADO".equals(newStatus)) {
+            dispatchNotifier.notifyDispatched(dispatch);
         }
 
-        return mapper.toResponse(dispatch);
+        return toResponseWithFacturas(dispatch);
     }
 
     @Transactional(readOnly = true)
     public List<DispatchResponse> findHistoryByOrderId(Long orderId) {
         return dispatchRepository.findAllByOrderId(orderId).stream()
-                .map(mapper::toResponse)
+                .map(this::toResponseWithFacturas)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<DispatchResponse> findByDateRange(java.time.LocalDateTime desde, java.time.LocalDateTime hasta) {
-        return dispatchRepository.findAllBetweenDates(desde, hasta).stream()
-                .map(mapper::toResponse)
-                .collect(Collectors.toList());
+    public PageResponse<DispatchResponse> findByDateRange(LocalDateTime desde, LocalDateTime hasta, Pageable pageable) {
+        Page<Long> ids = dispatchRepository.findIdsBetweenDates(desde, hasta, pageable);
+        if (ids.isEmpty()) {
+            return PageResponse.of(List.of(), ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
+        }
+        Map<Long, Dispatch> byId = dispatchRepository.findAllWithFetchByIds(ids.getContent()).stream()
+                .collect(Collectors.toMap(Dispatch::getId, d -> d));
+        List<DispatchResponse> content = ids.getContent().stream()
+                .map(byId::get)
+                .filter(java.util.Objects::nonNull)
+                .map(this::toResponseWithFacturas)
+                .toList();
+        return PageResponse.of(content, ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
     }
 
     private Product findProduct(Long productId) {
@@ -318,22 +342,6 @@ public class DispatchService {
         }
     }
 
-    private String calcularCumplimiento(List<DispatchDetail> details) {
-        if (details == null || details.isEmpty()) {
-            return CUMPLIMIENTO_PARCIAL;
-        }
-        boolean parcial = false;
-        for (DispatchDetail detail : details) {
-            BigDecimal solicitado = detail.getQuantity() != null ? detail.getQuantity() : BigDecimal.ZERO;
-            BigDecimal despachado = detail.getDelivered() != null ? detail.getDelivered() : BigDecimal.ZERO;
-            if (despachado.compareTo(solicitado) < 0) {
-                parcial = true;
-                break;
-            }
-        }
-        return parcial ? CUMPLIMIENTO_PARCIAL : CUMPLIMIENTO_COMPLETO;
-    }
-
     private List<Order> resolveOrders(DispatchRequest request) {
         List<Long> ids = request.orderIds();
         if (ids == null || ids.isEmpty()) {
@@ -349,46 +357,6 @@ public class DispatchService {
             throw new ResourceNotFoundException("Uno o más pedidos no fueron encontrados");
         }
         return orders;
-    }
-
-    private void notifyCreated(Dispatch dispatch, List<Order> orders, Driver driver, Vehicle vehicle, Long userId) {
-        String orderNumbers = orders.stream()
-                .map(Order::getOrderNumber)
-                .collect(Collectors.joining(", "));
-        try {
-            notificationService.createForRoles(
-                    "Nuevo despacho",
-                    "Se ha creado el despacho " + dispatch.getDispatchNumber() + " para el/los pedido(s): " + orderNumbers + ".",
-                    "INFO",
-                    "/despachos/" + dispatch.getId(),
-                    RoleType.CARTERA, RoleType.ADMIN
-            );
-
-            if (userId != null) {
-                notificationService.create(NotificationRequest.builder()
-                        .userId(userId)
-                        .title("Despacho creado")
-                        .message("El despacho " + dispatch.getDispatchNumber() + " fue creado exitosamente.")
-                        .type("SUCCESS")
-                        .link("/despachos/" + dispatch.getId())
-                        .build());
-
-                User dispatchUser = userRepository.findById(userId).orElse(null);
-                if (dispatchUser != null && dispatchUser.getEmail() != null && !dispatchUser.getEmail().isBlank()) {
-                    emailService.sendEmail(
-                            dispatchUser.getEmail(),
-                            "Nuevo despacho - FritoMix",
-                            "Hola " + dispatchUser.getFirstName() + ",\n\n"
-                                    + "Se ha creado un nuevo despacho: " + dispatch.getDispatchNumber() + ".\n"
-                                    + "Conductor: " + driver.getName() + "\n"
-                                    + "Vehículo: " + vehicle.getVehicleNumber() + "\n\n"
-                                    + "FritoMix S.A.S."
-                    );
-                }
-            }
-        } catch (Exception e) {
-            log.error("Error al crear notificación/email para despacho {}: {}", dispatch.getDispatchNumber(), e.getMessage(), e);
-        }
     }
 
 }
