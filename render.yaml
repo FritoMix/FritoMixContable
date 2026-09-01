@@ -36,3 +36,11 @@ services:
         value: https://fritomix.com
       - key: NOTIFICATIONS_EMAIL_ENABLED
         value: "true"
+      - key: PUSH_ENABLED
+        value: "true"
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
