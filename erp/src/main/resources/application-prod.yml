@@ -19,6 +19,8 @@ spring:
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
+      data-source-properties:
+        sslmode: require
 
   jpa:
     open-in-view: false
