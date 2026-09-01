@@ -63,3 +63,9 @@ app:
     login-rate-limit:
       max-attempts: ${LOGIN_MAX_ATTEMPTS:5}
       window-seconds: ${LOGIN_WINDOW_SECONDS:60}
+  push:
+    enabled: ${PUSH_ENABLED:true}
+    vapid:
+      public-key: ${VAPID_PUBLIC_KEY}
+      private-key: ${VAPID_PRIVATE_KEY}
+      subject: ${VAPID_SUBJECT:mailto:soporte@fritomix.com}

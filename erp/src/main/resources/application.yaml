@@ -56,3 +56,9 @@ app:
       window-seconds: 60
   notifications:
     email-enabled: ${NOTIFICATIONS_EMAIL_ENABLED:true}
+  push:
+    enabled: ${PUSH_ENABLED:false}
+    vapid:
+      public-key: ${VAPID_PUBLIC_KEY:}
+      private-key: ${VAPID_PRIVATE_KEY:}
+      subject: ${VAPID_SUBJECT:mailto:soporte@fritomix.com}
