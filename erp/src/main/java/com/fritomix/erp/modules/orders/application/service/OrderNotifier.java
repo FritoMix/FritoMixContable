@@ -6,12 +6,13 @@ import com.fritomix.erp.modules.notifications.application.dto.request.Notificati
 import com.fritomix.erp.modules.notifications.application.service.EmailService;
 import com.fritomix.erp.modules.notifications.application.service.NotificationService;
 import com.fritomix.erp.modules.orders.domain.entity.Order;
+import com.fritomix.erp.modules.push.application.service.PushNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * Centraliza las notificaciones y emails relacionados con pedidos.
+ * Centraliza las notificaciones, emails y push relacionados con pedidos.
  */
 @Component
 @RequiredArgsConstructor
@@ -20,6 +21,7 @@ public class OrderNotifier {
 
     private final NotificationService notificationService;
     private final EmailService emailService;
+    private final PushNotificationService pushNotificationService;
 
     public void notifyCreated(Order order, Customer customer, Long userId) {
         try {
@@ -29,6 +31,13 @@ public class OrderNotifier {
                     "INFO",
                     "/pedidos/" + order.getId(),
                     RoleType.CARTERA, RoleType.ADMIN
+            );
+
+            pushNotificationService.sendToRoles(
+                    "Nuevo pedido - " + order.getOrderNumber(),
+                    customer.getBusinessName() + " · está listo para despacho.",
+                    "/pedidos/" + order.getId(),
+                    RoleType.DESPACHADOR, RoleType.ADMIN
             );
 
             if (userId != null) {
@@ -42,7 +51,7 @@ public class OrderNotifier {
             }
 
             if (customer.getEmail() != null && !customer.getEmail().isBlank()) {
-                emailService.sendEmail(
+                emailService.sendEmailQuietly(
                         customer.getEmail(),
                         "Nuevo pedido - FritoMix",
                         "Hola " + customer.getBusinessName() + ",\n\n"

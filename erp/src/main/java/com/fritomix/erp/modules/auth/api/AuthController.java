@@ -2,9 +2,13 @@ package com.fritomix.erp.modules.auth.api;
 
 import com.fritomix.erp.modules.auth.application.command.LoginCommand;
 import com.fritomix.erp.modules.auth.application.command.RefreshTokenCommand;
+import com.fritomix.erp.modules.auth.application.dto.request.ForgotPasswordRequest;
 import com.fritomix.erp.modules.auth.application.dto.request.LoginRequest;
+import com.fritomix.erp.modules.auth.application.dto.request.ResetPasswordRequest;
+import com.fritomix.erp.modules.auth.application.dto.request.VerifyResetCodeRequest;
 import com.fritomix.erp.modules.auth.application.dto.response.AuthenticationResponse;
 import com.fritomix.erp.modules.auth.application.service.AuthenticationService;
+import com.fritomix.erp.modules.auth.application.service.PasswordResetService;
 import com.fritomix.erp.modules.auth.exception.RefreshTokenExpiredException;
 import com.fritomix.erp.security.jwt.JwtProperties;
 import jakarta.servlet.http.HttpServletResponse;
@@ -28,6 +32,7 @@ public class AuthController {
     private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
 
     private final AuthenticationService authenticationService;
+    private final PasswordResetService passwordResetService;
     private final JwtProperties jwtProperties;
 
     @Value("${app.cookie.secure:true}")
@@ -72,6 +77,24 @@ public class AuthController {
         }
         clearRefreshTokenCookie(response);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request.email());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/verify-reset-code")
+    public ResponseEntity<Void> verifyResetCode(@Valid @RequestBody VerifyResetCodeRequest request) {
+        passwordResetService.verifyCode(request.email(), request.code());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request.email(), request.code(), request.newPassword());
+        return ResponseEntity.ok().build();
     }
 
     private void setRefreshTokenCookie(HttpServletResponse response, String token) {
