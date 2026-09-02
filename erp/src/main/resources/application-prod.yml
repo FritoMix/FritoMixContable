@@ -19,6 +19,8 @@ spring:
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
+      data-source-properties:
+        sslmode: require
 
   jpa:
     open-in-view: false
@@ -30,6 +32,8 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+    connect-retries: 6
+    connect-retries-interval: 5
 
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
@@ -66,6 +70,6 @@ app:
   push:
     enabled: ${PUSH_ENABLED:true}
     vapid:
-      public-key: ${VAPID_PUBLIC_KEY}
-      private-key: ${VAPID_PRIVATE_KEY}
+      public-key: ${VAPID_PUBLIC_KEY:}
+      private-key: ${VAPID_PRIVATE_KEY:}
       subject: ${VAPID_SUBJECT:mailto:soporte@fritomix.com}

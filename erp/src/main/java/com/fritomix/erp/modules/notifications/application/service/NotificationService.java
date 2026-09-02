@@ -84,7 +84,7 @@ public class NotificationService {
         if (link != null && !link.isBlank()) {
             body += "\n\nVer más: " + frontendUrl + link;
         }
-        emailService.sendEmail(user.getEmail(), "[FritoMix] " + title, body);
+        emailService.sendEmailQuietly(user.getEmail(), "[FritoMix] " + title, body);
     }
 
     @Transactional
