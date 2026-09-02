@@ -8,6 +8,11 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -19,15 +24,16 @@ public class EmailService {
     private final JavaMailSender mailSender;
     private final RestClient restClient;
 
-    @Value("${mail.api-key:}")
-    private String brevoApiKey;
+    private final String brevoApiKey;
+    private final String mailFrom;
 
-    @Value("${mail.from:}")
-    private String mailFrom;
-
-    public EmailService(JavaMailSender mailSender) {
+    public EmailService(JavaMailSender mailSender,
+                        @Value("${mail.api-key:}") String brevoApiKey,
+                        @Value("${mail.from:}") String mailFrom) {
         this.mailSender = mailSender;
         this.restClient = RestClient.create();
+        this.brevoApiKey = resolveFromDotenv("MAIL_API_KEY", brevoApiKey);
+        this.mailFrom = resolveFromDotenv("MAIL_FROM", mailFrom);
     }
 
     /**
@@ -96,5 +102,49 @@ public class EmailService {
         message.setText(body);
         mailSender.send(message);
         log.info("Email enviado a {} via SMTP: {}", to, subject);
+    }
+
+    /**
+     * Si el valor configurado está vacío, intenta leerlo del archivo .env local.
+     * Así el envío por Brevo funciona en desarrollo sin depender de cómo se
+     * arranque la aplicación (IDE, terminal, etc.).
+     */
+    String resolveFromDotenv(String envKey, String configured) {
+        if (configured != null && !configured.isBlank()) {
+            return configured;
+        }
+        String value = readDotenvValue(envKey);
+        if (value != null && !value.isBlank()) {
+            log.info("Credencial de correo '{}' leída del archivo .env", envKey);
+        }
+        return value;
+    }
+
+    private String readDotenvValue(String envKey) {
+        for (String location : new String[]{".env", "erp/.env",
+                Paths.get("").toAbsolutePath() + "/.env",
+                Paths.get("").toAbsolutePath() + "/../.env"}) {
+            Path path = Paths.get(location);
+            if (!Files.exists(path)) {
+                continue;
+            }
+            try {
+                for (String line : Files.readAllLines(path)) {
+                    String trimmed = line.trim();
+                    if (trimmed.isEmpty() || trimmed.startsWith("#") || !trimmed.startsWith(envKey + "=")) {
+                        continue;
+                    }
+                    String value = trimmed.substring(envKey.length() + 1).trim();
+                    if ((value.startsWith("\"") && value.endsWith("\""))
+                            || (value.startsWith("'") && value.endsWith("'"))) {
+                        value = value.substring(1, value.length() - 1);
+                    }
+                    return value;
+                }
+            } catch (IOException e) {
+                // ignorar y seguir con la siguiente ubicación
+            }
+        }
+        return null;
     }
 }
