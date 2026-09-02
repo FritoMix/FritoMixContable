@@ -51,7 +51,7 @@ public class OrderNotifier {
             }
 
             if (customer.getEmail() != null && !customer.getEmail().isBlank()) {
-                emailService.sendEmail(
+                emailService.sendEmailQuietly(
                         customer.getEmail(),
                         "Nuevo pedido - FritoMix",
                         "Hola " + customer.getBusinessName() + ",\n\n"

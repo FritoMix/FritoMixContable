@@ -2,6 +2,7 @@ package com.fritomix.erp.exception;
 
 import com.fritomix.erp.modules.auth.exception.AccountLockedException;
 import com.fritomix.erp.modules.auth.exception.InvalidCredentialsException;
+import com.fritomix.erp.modules.auth.exception.InvalidPasswordResetCodeException;
 import com.fritomix.erp.modules.auth.exception.RefreshTokenExpiredException;
 import com.fritomix.erp.modules.auth.exception.UserDisabledException;
 import com.fritomix.erp.modules.auth.exception.UserNotFoundException;
@@ -54,6 +55,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleUserNotFound(UserNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidPasswordResetCodeException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidResetCode(InvalidPasswordResetCodeException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
