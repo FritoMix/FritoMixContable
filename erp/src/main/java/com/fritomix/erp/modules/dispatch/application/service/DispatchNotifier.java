@@ -53,7 +53,7 @@ public class DispatchNotifier {
 
                 User dispatchUser = userRepository.findById(userId).orElse(null);
                 if (dispatchUser != null && dispatchUser.getEmail() != null && !dispatchUser.getEmail().isBlank()) {
-                    emailService.sendEmail(
+                    emailService.sendEmailQuietly(
                             dispatchUser.getEmail(),
                             "Nuevo despacho - FritoMix",
                             "Hola " + dispatchUser.getFirstName() + ",\n\n"
