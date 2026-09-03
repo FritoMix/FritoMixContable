@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/categories")
@@ -54,6 +55,12 @@ public class CategoryController {
     @PreAuthorize("hasAuthority('PERMISSION_PRODUCTS_EDIT')")
     public ResponseEntity<CategoryDTO> update(@PathVariable Long id, @Valid @RequestBody CategoryCreateRequest request) {
         return ResponseEntity.ok(categoryService.update(id, request));
+    }
+
+    @PutMapping("/{id}/image")
+    @PreAuthorize("hasAuthority('PERMISSION_PRODUCTS_EDIT')")
+    public ResponseEntity<CategoryDTO> updateImage(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(categoryService.updateImage(id, body.get("image")));
     }
 
     @DeleteMapping("/{id}")
