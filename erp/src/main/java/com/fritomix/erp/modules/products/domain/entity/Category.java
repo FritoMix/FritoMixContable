@@ -24,6 +24,9 @@ public class Category {
     @Column(length = 150)
     private String description;
 
+    @Column(columnDefinition = "TEXT")
+    private String image;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Category parent;
