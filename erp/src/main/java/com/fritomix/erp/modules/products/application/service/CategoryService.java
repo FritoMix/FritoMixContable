@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -15,8 +16,10 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
 
-    public record CategoryDTO(Long id, String name, String description, Long parentId) {}
-    public record CategoryGroupDTO(Long id, String name, String description, List<CategoryDTO> children) {}
+    private static final Pattern IMAGE_DATA_URI = Pattern.compile("^data:image/(png|jpe?g|webp|gif|bmp);base64,.*$", Pattern.CASE_INSENSITIVE);
+
+    public record CategoryDTO(Long id, String name, String description, String image, Long parentId) {}
+    public record CategoryGroupDTO(Long id, String name, String description, String image, List<CategoryDTO> children) {}
     public record CategoryCreateRequest(String name, String description, Long parentId) {}
 
     @Transactional(readOnly = true)
@@ -24,9 +27,9 @@ public class CategoryService {
         List<Category> groups = categoryRepository.findByParentIsNullOrderByName();
         return groups.stream().map(g -> {
             List<CategoryDTO> children = categoryRepository.findByParentIdOrderByName(g.getId()).stream()
-                    .map(c -> new CategoryDTO(c.getId(), c.getName(), c.getDescription(), g.getId()))
+                    .map(c -> new CategoryDTO(c.getId(), c.getName(), c.getDescription(), c.getImage(), g.getId()))
                     .toList();
-            return new CategoryGroupDTO(g.getId(), g.getName(), g.getDescription(), children);
+            return new CategoryGroupDTO(g.getId(), g.getName(), g.getDescription(), g.getImage(), children);
         }).toList();
     }
 
@@ -36,7 +39,7 @@ public class CategoryService {
             throw new ResourceNotFoundException("Grupo no encontrado con id: " + groupId);
         }
         return categoryRepository.findByParentIdOrderByName(groupId).stream()
-                .map(c -> new CategoryDTO(c.getId(), c.getName(), c.getDescription(), groupId))
+                .map(c -> new CategoryDTO(c.getId(), c.getName(), c.getDescription(), c.getImage(), groupId))
                 .toList();
     }
 
@@ -45,7 +48,27 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con id: " + id));
         Long parentId = category.getParent() != null ? category.getParent().getId() : null;
-        return new CategoryDTO(category.getId(), category.getName(), category.getDescription(), parentId);
+        return new CategoryDTO(category.getId(), category.getName(), category.getDescription(), category.getImage(), parentId);
+    }
+
+    @Transactional
+    public CategoryDTO updateImage(Long id, String imageDataUri) {
+        if (imageDataUri == null || imageDataUri.isBlank()) {
+            throw new IllegalArgumentException("La imagen es requerida");
+        }
+        if (!IMAGE_DATA_URI.matcher(imageDataUri).matches()) {
+            throw new IllegalArgumentException("Formato de imagen no válido. Debe ser un data URI (png/jpg/webp/gif/bmp) en base64");
+        }
+        int maxLen = 1_500_000;
+        if (imageDataUri.length() > maxLen) {
+            throw new IllegalArgumentException("La imagen es demasiado grande (máximo ~1MB). Usá una imagen más pequeña.");
+        }
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con id: " + id));
+        category.setImage(imageDataUri);
+        category = categoryRepository.save(category);
+        Long parentId = category.getParent() != null ? category.getParent().getId() : null;
+        return new CategoryDTO(category.getId(), category.getName(), category.getDescription(), category.getImage(), parentId);
     }
 
     @Transactional
@@ -58,7 +81,7 @@ public class CategoryService {
                 .description(request.description())
                 .build();
         group = categoryRepository.save(group);
-        return new CategoryDTO(group.getId(), group.getName(), group.getDescription(), null);
+        return new CategoryDTO(group.getId(), group.getName(), group.getDescription(), group.getImage(), null);
     }
 
     @Transactional
@@ -80,7 +103,7 @@ public class CategoryService {
                 .parent(parent)
                 .build();
         category = categoryRepository.save(category);
-        return new CategoryDTO(category.getId(), category.getName(), category.getDescription(), parent.getId());
+        return new CategoryDTO(category.getId(), category.getName(), category.getDescription(), category.getImage(), parent.getId());
     }
 
     @Transactional
@@ -110,7 +133,7 @@ public class CategoryService {
 
         category = categoryRepository.save(category);
         Long parentId = category.getParent() != null ? category.getParent().getId() : null;
-        return new CategoryDTO(category.getId(), category.getName(), category.getDescription(), parentId);
+        return new CategoryDTO(category.getId(), category.getName(), category.getDescription(), category.getImage(), parentId);
     }
 
     @Transactional
