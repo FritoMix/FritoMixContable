@@ -157,6 +157,40 @@ class OrderServiceTest {
     }
 
     @Test
+    void updateProductionStatus_shouldAllowStartFromApproved() {
+        order.setStatus("APROBADO");
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
+        when(mapper.toResponse(any(Order.class))).thenReturn(
+                OrderResponse.builder().id(1L).orderNumber("ORD-001").status("EN_PRODUCCION").build());
+
+        OrderResponse response = orderService.updateProductionStatus(1L, "EN_PRODUCCION");
+
+        assertNotNull(response);
+        assertEquals("EN_PRODUCCION", response.status());
+        assertEquals("EN_PRODUCCION", order.getStatus());
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void updateProductionStatus_shouldRejectSkipToReady() {
+        order.setStatus("APROBADO");
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertThrows(IllegalArgumentException.class, () -> orderService.updateProductionStatus(1L, "LISTO_PRODUCCION"));
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void updateProductionStatus_shouldRejectNonProductionStatus() {
+        order.setStatus("APROBADO");
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertThrows(IllegalArgumentException.class, () -> orderService.updateProductionStatus(1L, "APROBADO"));
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
     void delete_shouldThrowWhenOrderClosed() {
         order.setStatus("CANCELADO");
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
