@@ -35,9 +35,9 @@ public class OrderNotifier {
 
             pushNotificationService.sendToRoles(
                     "Nuevo pedido - " + order.getOrderNumber(),
-                    customer.getBusinessName() + " · está listo para despacho.",
+                    customer.getBusinessName() + " · está pendiente de aprobación.",
                     "/pedidos/" + order.getId(),
-                    RoleType.DESPACHADOR, RoleType.ADMIN
+                    RoleType.CARTERA, RoleType.ADMIN
             );
 
             if (userId != null) {
@@ -69,7 +69,23 @@ public class OrderNotifier {
             if (OrderStatusRules.STATUS_APROBADO.equals(newStatus)) {
                 notificationService.createForRoles(
                         "Pedido aprobado",
-                        "El pedido " + order.getOrderNumber() + " fue aprobado y está listo para despacho.",
+                        "El pedido " + order.getOrderNumber() + " fue aprobado y está pendiente de producción.",
+                        "SUCCESS",
+                        "/pedidos/" + order.getId(),
+                        RoleType.PRODUCCION, RoleType.ADMIN
+                );
+            } else if (OrderStatusRules.STATUS_EN_PRODUCCION.equals(newStatus)) {
+                notificationService.createForRoles(
+                        "Pedido en producción",
+                        "El pedido " + order.getOrderNumber() + " entró en producción.",
+                        "INFO",
+                        "/pedidos/" + order.getId(),
+                        RoleType.ADMIN
+                );
+            } else if (OrderStatusRules.STATUS_LISTO_PRODUCCION.equals(newStatus)) {
+                notificationService.createForRoles(
+                        "Pedido listo para despacho",
+                        "El pedido " + order.getOrderNumber() + " terminó producción y está listo para despacho.",
                         "SUCCESS",
                         "/pedidos/" + order.getId(),
                         RoleType.DESPACHADOR, RoleType.ADMIN

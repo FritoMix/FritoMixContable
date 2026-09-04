@@ -23,8 +23,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
                    OR LOWER(o.customer.businessName) LIKE LOWER(CAST(:search AS string))
                    OR LOWER(o.customer.document) LIKE LOWER(CAST(:search AS string)))
               AND (:status IS NULL OR o.status = :status)
+              AND (:statuses IS NULL OR o.status IN :statuses)
             """)
-    Page<Order> search(@Param("search") String search, @Param("status") String status, Pageable pageable);
+    Page<Order> search(@Param("search") String search, @Param("status") String status, @Param("statuses") Collection<String> statuses, Pageable pageable);
 
     @Query("SELECT DISTINCT o FROM Order o " +
            "JOIN FETCH o.customer " +
@@ -40,7 +41,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
            "WHERE de.order.id IN :orderIds")
     List<OrderDetail> findDetailsByOrderIds(@Param("orderIds") Collection<Long> orderIds);
 
-    @Query("SELECT o FROM Order o WHERE o.status = 'APROBADO' AND NOT EXISTS (SELECT d FROM Dispatch d WHERE o MEMBER OF d.orders)")
+    @Query("SELECT o FROM Order o WHERE o.status = 'LISTO_PRODUCCION' AND NOT EXISTS (SELECT d FROM Dispatch d WHERE o MEMBER OF d.orders)")
     List<Order> findReadyForDispatch();
 
     @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING(order_number, 5) AS INTEGER)), 0) FROM orders WHERE order_number LIKE 'PED-%'", nativeQuery = true)

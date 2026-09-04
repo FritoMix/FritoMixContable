@@ -47,6 +47,7 @@ public class OrderMapper {
         String cityName = null;
         String departmentName = null;
         String coordinatorName = null;
+        String approvedByName = null;
         String dispatchUserName = null;
         String dispatchDriverName = null;
         String dispatchDriverDocument = null;
@@ -66,6 +67,12 @@ public class OrderMapper {
         }
         if (user != null) {
             coordinatorName = (user.getFirstName() + " " + user.getLastName()).trim();
+        }
+        if (order.getApprovedById() != null) {
+            User approver = userRepository.findById(order.getApprovedById()).orElse(null);
+            if (approver != null) {
+                approvedByName = (approver.getFirstName() + " " + approver.getLastName()).trim();
+            }
         }
 
         List<Dispatch> dispatches = dispatchRepository.findAllByOrderId(order.getId());
@@ -116,6 +123,9 @@ public class OrderMapper {
                 .departmentName(departmentName)
                 .userId(order.getUserId())
                 .coordinatorName(coordinatorName)
+                .approvedById(order.getApprovedById())
+                .approvedByName(approvedByName)
+                .approvedAt(order.getApprovedAt())
                 .orderDate(order.getOrderDate())
                 .status(order.getStatus())
                 .total(order.getTotal())
