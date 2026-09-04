@@ -2,6 +2,7 @@ package com.fritomix.erp.modules.orders.application.service;
 
 import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.exception.ResourceNotFoundException;
+import com.fritomix.erp.modules.auth.application.dto.JwtUserInfo;
 import com.fritomix.erp.modules.auth.domain.entity.User;
 import com.fritomix.erp.modules.auth.domain.repository.UserRepository;
 import com.fritomix.erp.modules.customers.domain.entity.Customer;
@@ -16,10 +17,12 @@ import com.fritomix.erp.modules.orders.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -37,13 +40,19 @@ public class OrderService {
     private final OrderNotifier orderNotifier;
 
     @Transactional(readOnly = true)
-    public PageResponse<OrderResponse> findAll(String search, String status, Pageable pageable) {
+    public PageResponse<OrderResponse> findAll(String search, String status, List<String> statuses, Pageable pageable) {
         String term = StringUtils.hasText(search) ? "%" + search.trim() + "%" : null;
         String statusFilter = StringUtils.hasText(status) ? status.trim().toUpperCase() : null;
+        List<String> statusFilters = statuses != null && !statuses.isEmpty()
+                ? statuses.stream().map(s -> s.trim().toUpperCase()).toList()
+                : null;
         if (statusFilter != null && !OrderStatusRules.isValidStatus(statusFilter)) {
             throw new IllegalArgumentException("Estado inválido para el pedido: " + status);
         }
-        Page<Order> page = orderRepository.search(term, statusFilter, pageable);
+        if (statusFilters != null && statusFilters.stream().anyMatch(s -> !OrderStatusRules.isValidStatus(s))) {
+            throw new IllegalArgumentException("Estado inválido para el pedido: " + statuses);
+        }
+        Page<Order> page = orderRepository.search(term, statusFilter, statusFilters, pageable);
         List<Order> orders = page.getContent();
         List<Long> customerIds = orders.stream()
                 .map(o -> o.getCustomer().getId())
@@ -168,10 +177,42 @@ public class OrderService {
             throw new IllegalArgumentException("No se puede cambiar el pedido de " + order.getStatus() + " a " + newStatus);
         }
         order.setStatus(newStatus);
+        if ("APROBADO".equals(newStatus)) {
+            order.setApprovedById(currentUserId());
+            order.setApprovedAt(LocalDateTime.now());
+        }
         order = orderRepository.save(order);
 
         orderNotifier.notifyStatusChanged(order, newStatus);
 
         return mapper.toResponse(order);
+    }
+
+    @Transactional
+    public OrderResponse updateProductionStatus(Long id, String status) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado con id: " + id));
+
+        String newStatus = status != null ? status.toUpperCase() : null;
+        if (newStatus == null || !OrderStatusRules.isProductionStatus(newStatus)) {
+            throw new IllegalArgumentException("Estado de producción inválido: " + status);
+        }
+        if (!OrderStatusRules.canTransition(order.getStatus(), newStatus)) {
+            throw new IllegalArgumentException("No se puede cambiar el pedido de " + order.getStatus() + " a " + newStatus);
+        }
+        order.setStatus(newStatus);
+        order = orderRepository.save(order);
+
+        orderNotifier.notifyStatusChanged(order, newStatus);
+
+        return mapper.toResponse(order);
+    }
+
+    private Long currentUserId() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof JwtUserInfo userInfo) {
+            return userInfo.userId();
+        }
+        return null;
     }
 }

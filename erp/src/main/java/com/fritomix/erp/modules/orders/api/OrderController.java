@@ -14,6 +14,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/orders")
 @RequiredArgsConstructor
@@ -32,8 +34,9 @@ public class OrderController {
     public ResponseEntity<PageResponse<OrderResponse>> findAll(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) List<String> statuses,
             @PageableDefault(size = 20, sort = "orderDate", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(orderService.findAll(search, status, pageable));
+        return ResponseEntity.ok(orderService.findAll(search, status, statuses, pageable));
     }
 
     @GetMapping("/{id}")
@@ -58,6 +61,12 @@ public class OrderController {
     @PreAuthorize("hasAnyAuthority('PERMISSION_ORDERS_EDIT','PERMISSION_ORDERS_CHANGE_STATUS')")
     public ResponseEntity<OrderResponse> updateStatus(@PathVariable Long id, @RequestParam String status) {
         return ResponseEntity.ok(orderService.updateStatus(id, status));
+    }
+
+    @PatchMapping("/{id}/production-status")
+    @PreAuthorize("hasAuthority('PERMISSION_ORDERS_PRODUCTION')")
+    public ResponseEntity<OrderResponse> updateProductionStatus(@PathVariable Long id, @RequestParam String status) {
+        return ResponseEntity.ok(orderService.updateProductionStatus(id, status));
     }
 
     @DeleteMapping("/{id}")
