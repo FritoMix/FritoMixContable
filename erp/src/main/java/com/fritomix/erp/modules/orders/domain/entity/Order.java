@@ -48,6 +48,12 @@ public class Order {
     @Builder.Default
     private BigDecimal pesoTotalCargue = BigDecimal.ZERO;
 
+    @Column(name = "approved_by")
+    private Long approvedById;
+
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
