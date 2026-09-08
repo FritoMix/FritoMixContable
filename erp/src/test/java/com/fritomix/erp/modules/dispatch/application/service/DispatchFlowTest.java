@@ -17,26 +17,37 @@ class DispatchFlowTest {
     @Test
     void initialStatus_shouldDefaultToPendiente() {
         assertEquals("PENDIENTE", DispatchFlow.initialStatus(null));
-        assertEquals("ELABORACION", DispatchFlow.initialStatus("elaboracion"));
+        assertEquals("PENDIENTE", DispatchFlow.initialStatus("pendiente"));
     }
 
     @Test
     void initialStatus_shouldRejectAdvancedStates() {
-        assertThrows(IllegalArgumentException.class, () -> DispatchFlow.initialStatus("PRODUCCION"));
+        assertThrows(IllegalArgumentException.class, () -> DispatchFlow.initialStatus("ELABORACION"));
+        assertThrows(IllegalArgumentException.class, () -> DispatchFlow.initialStatus("VEHICULO_ASIGNADO"));
         assertThrows(IllegalArgumentException.class, () -> DispatchFlow.initialStatus("DESPACHADO"));
     }
 
     @Test
     void validateTransition_shouldAllowForwardAndSame() {
         DispatchFlow.validateTransition("PENDIENTE", "PENDIENTE");
-        DispatchFlow.validateTransition("ELABORACION", "PRODUCCION");
+        DispatchFlow.validateTransition("PENDIENTE", "VEHICULO_ASIGNADO");
+        DispatchFlow.validateTransition("VEHICULO_ASIGNADO", "CONDUCTOR_ASIGNADO");
+        DispatchFlow.validateTransition("CONDUCTOR_ASIGNADO", "DESPACHADO");
         DispatchFlow.validateTransition("LISTO_CARGUE", "DESPACHADO");
     }
 
     @Test
     void validateTransition_shouldRejectBackwardOrInvalid() {
-        assertThrows(IllegalArgumentException.class, () -> DispatchFlow.validateTransition("PRODUCCION", "PENDIENTE"));
+        assertThrows(IllegalArgumentException.class, () -> DispatchFlow.validateTransition("CONDUCTOR_ASIGNADO", "VEHICULO_ASIGNADO"));
         assertThrows(IllegalArgumentException.class, () -> DispatchFlow.validateTransition("PENDIENTE", "INVALIDO"));
+        assertThrows(IllegalArgumentException.class, () -> DispatchFlow.validateTransition("PRODUCCION", "PENDIENTE"));
+    }
+
+    @Test
+    void validateTransition_shouldRejectSkippingStations() {
+        assertThrows(IllegalArgumentException.class, () -> DispatchFlow.validateTransition("PENDIENTE", "CONDUCTOR_ASIGNADO"));
+        assertThrows(IllegalArgumentException.class, () -> DispatchFlow.validateTransition("PENDIENTE", "DESPACHADO"));
+        assertThrows(IllegalArgumentException.class, () -> DispatchFlow.validateTransition("VEHICULO_ASIGNADO", "DESPACHADO"));
     }
 
     @Test
