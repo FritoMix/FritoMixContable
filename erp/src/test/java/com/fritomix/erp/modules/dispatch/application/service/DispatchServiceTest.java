@@ -144,6 +144,29 @@ class DispatchServiceTest {
     }
 
     @Test
+    void create_shouldSucceedWithoutDriverOrVehicle() {
+        DispatchRequest request = DispatchRequest.builder()
+                .tipoPedido("pedido_unico")
+                .orderId(1L)
+                .dispatchNumber("DES-002")
+                .build();
+
+        when(dispatchRepository.existsByDispatchNumber("DES-002")).thenReturn(false);
+        when(orderRepository.findAllById(List.of(1L))).thenReturn(List.of(order));
+        when(dispatchRepository.findAllByOrderId(eq(1L))).thenReturn(List.of());
+        when(dispatchRepository.save(any(Dispatch.class))).thenReturn(dispatch);
+        when(mapper.toResponse(any(Dispatch.class))).thenReturn(
+                DispatchResponse.builder().id(2L).dispatchNumber("DES-002").build());
+
+        DispatchResponse response = dispatchService.create(request);
+
+        assertNotNull(response);
+        assertEquals("DES-002", response.dispatchNumber());
+        verify(driverRepository, never()).findById(any());
+        verify(vehicleRepository, never()).findById(any());
+    }
+
+    @Test
     void create_shouldThrowWhenDuplicateDispatchNumber() {
         when(dispatchRepository.existsByDispatchNumber("DES-001")).thenReturn(true);
 

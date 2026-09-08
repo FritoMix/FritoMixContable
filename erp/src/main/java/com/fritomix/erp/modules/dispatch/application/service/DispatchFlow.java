@@ -13,10 +13,15 @@ public final class DispatchFlow {
 
     public static final Set<String> VALID_TIPO_PEDIDO = Set.of("pedido_unico", "pedido_multipedido");
     public static final Set<String> VALID_STATUS = Set.of(
-            "PENDIENTE", "ELABORACION", "PRODUCCION", "LISTO_CARGUE", "DESPACHADO");
+            "PENDIENTE", "VEHICULO_ASIGNADO", "CONDUCTOR_ASIGNADO", "DESPACHADO",
+            "ELABORACION", "PRODUCCION", "LISTO_CARGUE");
     public static final List<String> STATUS_FLOW = List.of(
-            "PENDIENTE", "ELABORACION", "PRODUCCION", "LISTO_CARGUE", "DESPACHADO");
+            "PENDIENTE", "VEHICULO_ASIGNADO", "CONDUCTOR_ASIGNADO", "DESPACHADO");
     public static final Set<String> STATUS_CERRADOS = Set.of("DESPACHADO");
+    public static final String STATUS_PENDIENTE = "PENDIENTE";
+    public static final String STATUS_VEHICULO_ASIGNADO = "VEHICULO_ASIGNADO";
+    public static final String STATUS_CONDUCTOR_ASIGNADO = "CONDUCTOR_ASIGNADO";
+    public static final String STATUS_DESPACHADO = "DESPACHADO";
     public static final String CUMPLIMIENTO_COMPLETO = "COMPLETO";
     public static final String CUMPLIMIENTO_PARCIAL = "PARCIAL";
 
@@ -36,24 +41,39 @@ public final class DispatchFlow {
     }
 
     /**
-     * Valida el estado inicial (PENDIENTE o ELABORACION) y devuelve el estado
-     * normalizado a mayúsculas o PENDIENTE por defecto.
+     * Valida el estado inicial (solo PENDIENTE) y devuelve el estado normalizado
+     * a mayúsculas o PENDIENTE por defecto.
      */
     public static String initialStatus(String status) {
         String normalized = status != null ? status.toUpperCase() : "PENDIENTE";
-        if (!STATUS_FLOW.subList(0, 2).contains(normalized)) {
+        if (!STATUS_PENDIENTE.equals(normalized)) {
             throw new IllegalArgumentException("Estado inicial inválido para el despacho: " + status);
         }
         return normalized;
     }
 
     /**
-     * Valida que una transición no retroceda en el flujo.
+     * Valida que una transición avance exactamente una estación en el flujo:
+     * PENDIENTE -> VEHICULO_ASIGNADO -> CONDUCTOR_ASIGNADO -> DESPACHADO.
+     * No se permite saltar etapas ni retroceder.
+     * Los estados legados (ELABORACION, PRODUCCION, LISTO_CARGUE) solo pueden cerrarse.
      */
     public static void validateTransition(String current, String next) {
         int currentIdx = STATUS_FLOW.indexOf(current);
         int newIdx = STATUS_FLOW.indexOf(next);
-        if (newIdx < 0 || newIdx < currentIdx) {
+        if (newIdx < 0) {
+            throw new IllegalArgumentException("Estado inválido para el despacho: " + next);
+        }
+        if (current.equals(next)) {
+            return;
+        }
+        if (currentIdx >= 0) {
+            if (newIdx != currentIdx + 1) {
+                throw new IllegalArgumentException(
+                        "Debe seguir el flujo en orden (" + String.join(" -> ", STATUS_FLOW)
+                                + "): no se permite pasar de " + current + " a " + next);
+            }
+        } else if (!STATUS_DESPACHADO.equals(next)) {
             throw new IllegalArgumentException("Estado inválido o retroceso de flujo para el despacho: " + next);
         }
     }

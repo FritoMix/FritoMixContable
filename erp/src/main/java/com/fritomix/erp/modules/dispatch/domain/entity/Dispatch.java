@@ -39,12 +39,15 @@ public class Dispatch {
     private List<Order> orders = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "driver_id", nullable = false)
+    @JoinColumn(name = "driver_id")
     private Driver driver;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "vehicle_id", nullable = false)
+    @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
+
+    @Column(name = "vehicle_plate", length = 30)
+    private String vehiclePlate;
 
     @Column(name = "dispatch_number", nullable = false, unique = true, length = 50)
     private String dispatchNumber;
@@ -71,6 +74,14 @@ public class Dispatch {
     @Column(name = "user_id")
     private Long userId;
 
+    @Column(name = "despachador_user_id")
+    private Long despachadorUserId;
+
+    @Column(name = "confirmado_por_user_id")
+    private Long confirmadoPorUserId;
+
+    @Column(name = "placa_observacion", columnDefinition = "TEXT")
+    private String placaObservacion;
 
     @Version
     @Column(nullable = false)
