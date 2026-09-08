@@ -58,14 +58,41 @@ public class DispatchNotifier {
                             "Nuevo despacho - FritoMix",
                             "Hola " + dispatchUser.getFirstName() + ",\n\n"
                                     + "Se ha creado un nuevo despacho: " + dispatch.getDispatchNumber() + ".\n"
-                                    + "Conductor: " + driver.getName() + "\n"
-                                    + "Vehículo: " + vehicle.getVehicleNumber() + "\n\n"
+                                    + "Conductor: " + (driver != null ? driver.getName() : "Por asignar") + "\n"
+                                    + "Vehículo: " + (vehicle != null ? vehicle.getVehicleNumber() : "Por asignar") + "\n\n"
                                     + "FritoMix S.A.S."
                     );
                 }
             }
         } catch (Exception e) {
             log.error("Error al crear notificación/email para despacho {}: {}", dispatch.getDispatchNumber(), e.getMessage(), e);
+        }
+    }
+
+    public void notifyPlacaConfirmada(Dispatch dispatch, User despachador) {
+        String orderNumbers = dispatch.getOrders().stream()
+                .map(Order::getOrderNumber)
+                .collect(Collectors.joining(", "));
+        try {
+            notificationService.createForRoles(
+                    "Placa confirmada",
+                    "El despacho " + dispatch.getDispatchNumber() + " fue confirmado (pedidos: " + orderNumbers
+                            + "). Placa: " + dispatch.getVehiclePlate()
+                            + ". Despachador: " + despachador.getFirstName() + " " + despachador.getLastName() + ".",
+                    "INFO",
+                    "/despachos/" + dispatch.getId(),
+                    RoleType.CARTERA, RoleType.ADMIN
+            );
+            notificationService.create(NotificationRequest.builder()
+                    .userId(despachador.getId())
+                    .title("Despacho asignado")
+                    .message("Te asignaron el despacho " + dispatch.getDispatchNumber()
+                            + " (placa " + dispatch.getVehiclePlate() + ").")
+                    .type("SUCCESS")
+                    .link("/despachos/" + dispatch.getId())
+                    .build());
+        } catch (Exception e) {
+            log.error("Error al notificar despacho asignado {}: {}", dispatch.getDispatchNumber(), e.getMessage(), e);
         }
     }
 

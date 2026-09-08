@@ -14,6 +14,7 @@ import com.fritomix.erp.modules.orders.domain.entity.OrderDetail;
 import com.fritomix.erp.modules.vehicles.domain.entity.Vehicle;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -73,8 +74,25 @@ public class DispatchMapper {
                     .orElse(null);
         }
 
+        String despachadorNombre = null;
+        if (dispatch.getDespachadorUserId() != null) {
+            despachadorNombre = userRepository.findById(dispatch.getDespachadorUserId())
+                    .map(u -> u.getFirstName() + " " + u.getLastName())
+                    .orElse(null);
+        }
+
+        String confirmadoPorNombre = null;
+        if (dispatch.getConfirmadoPorUserId() != null) {
+            confirmadoPorNombre = userRepository.findById(dispatch.getConfirmadoPorUserId())
+                    .map(u -> u.getFirstName() + " " + u.getLastName())
+                    .orElse(null);
+        }
+
         Driver driver = dispatch.getDriver();
         Vehicle vehicle = dispatch.getVehicle();
+        String placa = StringUtils.hasText(dispatch.getVehiclePlate())
+                ? dispatch.getVehiclePlate().trim()
+                : (vehicle != null ? vehicle.getVehicleNumber() : null);
 
         DispatchResponse.DispatchResponseBuilder builder = DispatchResponse.builder()
                 .id(dispatch.getId())
@@ -90,6 +108,11 @@ public class DispatchMapper {
                 .notes(dispatch.getNotes())
                 .numeroFactura(dispatch.getNumeroFactura())
                 .dispatchUserName(dispatchUserName)
+                .despachadorUserId(dispatch.getDespachadorUserId())
+                .despachadorNombre(despachadorNombre)
+                .confirmadoPorUserId(dispatch.getConfirmadoPorUserId())
+                .confirmadoPorNombre(confirmadoPorNombre)
+                .placaObservacion(dispatch.getPlacaObservacion())
                 .details(details.stream().map(this::toDetailResponse).collect(Collectors.toList()))
                 .arrumes(dispatch.getArrumes() == null
                         ? Collections.emptyList()
@@ -108,8 +131,11 @@ public class DispatchMapper {
         }
         if (vehicle != null) {
             builder.vehicleId(vehicle.getId())
-                   .vehicleNumber(vehicle.getVehicleNumber())
                    .vehicleType(vehicle.getType());
+        }
+        if (placa != null) {
+            builder.vehicleNumber(placa)
+                   .vehiclePlate(placa);
         }
 
         return builder.build();
