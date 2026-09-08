@@ -19,10 +19,8 @@ public record DispatchRequest(
 
         List<Long> orderIds,
 
-        @NotNull
         Long driverId,
 
-        @NotNull
         Long vehicleId,
 
         Long userId,

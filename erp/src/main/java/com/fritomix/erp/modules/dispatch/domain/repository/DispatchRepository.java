@@ -18,30 +18,84 @@ public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
 
     @Query(value = """
             SELECT d.id FROM Dispatch d
+            LEFT JOIN d.driver drv
+            LEFT JOIN d.vehicle veh
             WHERE (:search IS NULL
                    OR LOWER(d.dispatchNumber) LIKE LOWER(CAST(:search AS string))
-                   OR LOWER(d.driver.name) LIKE LOWER(CAST(:search AS string))
-                   OR LOWER(d.vehicle.vehicleNumber) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(drv.name) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(veh.vehicleNumber) LIKE LOWER(CAST(:search AS string))
                    OR EXISTS (SELECT o FROM d.orders o
                               WHERE LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))))
             ORDER BY d.dispatchDate DESC
             """,
            countQuery = """
             SELECT COUNT(d) FROM Dispatch d
+            LEFT JOIN d.driver drv
+            LEFT JOIN d.vehicle veh
             WHERE (:search IS NULL
                    OR LOWER(d.dispatchNumber) LIKE LOWER(CAST(:search AS string))
-                   OR LOWER(d.driver.name) LIKE LOWER(CAST(:search AS string))
-                   OR LOWER(d.vehicle.vehicleNumber) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(drv.name) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(veh.vehicleNumber) LIKE LOWER(CAST(:search AS string))
                    OR EXISTS (SELECT o FROM d.orders o
                               WHERE LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))))
             """)
     Page<Long> findIds(@Param("search") String search, Pageable pageable);
 
+    @Query(value = """
+            SELECT d.id FROM Dispatch d
+            LEFT JOIN d.driver drv
+            LEFT JOIN d.vehicle veh
+            WHERE (:search IS NULL
+                   OR LOWER(d.dispatchNumber) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(drv.name) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(veh.vehicleNumber) LIKE LOWER(CAST(:search AS string))
+                   OR EXISTS (SELECT o FROM d.orders o
+                              WHERE LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))))
+              AND d.status IN :statuses
+            ORDER BY d.dispatchDate DESC
+            """,
+           countQuery = """
+            SELECT COUNT(d) FROM Dispatch d
+            LEFT JOIN d.driver drv
+            LEFT JOIN d.vehicle veh
+            WHERE (:search IS NULL
+                   OR LOWER(d.dispatchNumber) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(drv.name) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(veh.vehicleNumber) LIKE LOWER(CAST(:search AS string))
+                   OR EXISTS (SELECT o FROM d.orders o
+                              WHERE LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))))
+              AND d.status IN :statuses
+            """)
+    Page<Long> findIdsByStatuses(@Param("search") String search, @Param("statuses") List<String> statuses, Pageable pageable);
+
+    @Query(value = """
+            SELECT d.id FROM Dispatch d
+            LEFT JOIN d.vehicle veh
+            WHERE (:search IS NULL
+                   OR LOWER(d.dispatchNumber) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(veh.vehicleNumber) LIKE LOWER(CAST(:search AS string))
+                   OR EXISTS (SELECT o FROM d.orders o
+                              WHERE LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))))
+              AND (:userId IS NULL OR d.despachadorUserId = :userId)
+            ORDER BY d.dispatchDate DESC
+            """,
+           countQuery = """
+            SELECT COUNT(d) FROM Dispatch d
+            LEFT JOIN d.vehicle veh
+            WHERE (:search IS NULL
+                   OR LOWER(d.dispatchNumber) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(veh.vehicleNumber) LIKE LOWER(CAST(:search AS string))
+                   OR EXISTS (SELECT o FROM d.orders o
+                              WHERE LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))))
+              AND (:userId IS NULL OR d.despachadorUserId = :userId)
+            """)
+    Page<Long> findAssignedIds(@Param("search") String search, @Param("userId") Long userId, Pageable pageable);
+
     @Query("SELECT DISTINCT d FROM Dispatch d " +
            "JOIN FETCH d.orders o " +
            "JOIN FETCH o.customer " +
-           "JOIN FETCH d.driver " +
-           "JOIN FETCH d.vehicle " +
+           "LEFT JOIN FETCH d.driver " +
+           "LEFT JOIN FETCH d.vehicle " +
            "WHERE d.id IN :ids " +
            "ORDER BY d.dispatchDate DESC")
     List<Dispatch> findAllWithFetchByIds(@Param("ids") Collection<Long> ids);
@@ -49,16 +103,35 @@ public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
     @Query("SELECT DISTINCT d FROM Dispatch d " +
            "JOIN d.orders o " +
            "JOIN FETCH d.orders " +
-           "JOIN FETCH d.driver " +
-           "JOIN FETCH d.vehicle " +
+           "LEFT JOIN FETCH d.driver " +
+           "LEFT JOIN FETCH d.vehicle " +
            "WHERE o.id = :orderId " +
            "ORDER BY d.dispatchDate DESC")
     List<Dispatch> findAllByOrderId(@Param("orderId") Long orderId);
 
+    @Query(value = """
+            SELECT d.id FROM Dispatch d
+            LEFT JOIN d.driver drv
+            LEFT JOIN d.vehicle veh
+            WHERE d.userId = :userId
+            ORDER BY d.dispatchDate DESC
+            """,
+           countQuery = "SELECT COUNT(d) FROM Dispatch d WHERE d.userId = :userId")
+    Page<Long> findIdsByUserId(@Param("userId") Long userId, Pageable pageable);
+
+    @Query(value = """
+            SELECT d.id FROM Dispatch d
+            LEFT JOIN d.vehicle veh
+            WHERE d.confirmadoPorUserId = :userId
+            ORDER BY d.dispatchDate DESC
+            """,
+           countQuery = "SELECT COUNT(d) FROM Dispatch d WHERE d.confirmadoPorUserId = :userId")
+    Page<Long> findIdsByConfirmedByUserId(@Param("userId") Long userId, Pageable pageable);
+
     @Query("SELECT DISTINCT d FROM Dispatch d " +
            "JOIN FETCH d.orders " +
-           "JOIN FETCH d.driver " +
-           "JOIN FETCH d.vehicle " +
+           "LEFT JOIN FETCH d.driver " +
+           "LEFT JOIN FETCH d.vehicle " +
            "WHERE d.dispatchDate BETWEEN :desde AND :hasta " +
            "ORDER BY d.dispatchDate DESC")
     List<Dispatch> findAllBetweenDates(@Param("desde") LocalDateTime desde,
@@ -77,8 +150,8 @@ public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
     @Query("SELECT DISTINCT d FROM Dispatch d " +
            "JOIN FETCH d.orders o " +
            "JOIN FETCH o.customer " +
-           "JOIN FETCH d.driver " +
-           "JOIN FETCH d.vehicle " +
+           "LEFT JOIN FETCH d.driver " +
+           "LEFT JOIN FETCH d.vehicle " +
            "WHERE d.status = :status " +
            "ORDER BY d.dispatchDate DESC")
     List<Dispatch> findAllByStatusWithFetch(@Param("status") String status);
