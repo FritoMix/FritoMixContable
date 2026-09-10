@@ -109,6 +109,15 @@ public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
            "ORDER BY d.dispatchDate DESC")
     List<Dispatch> findAllByOrderId(@Param("orderId") Long orderId);
 
+    @Query("SELECT DISTINCT d FROM Dispatch d " +
+           "JOIN FETCH d.orders o " +
+           "JOIN FETCH o.customer " +
+           "LEFT JOIN FETCH d.driver " +
+           "LEFT JOIN FETCH d.vehicle " +
+           "WHERE o.id IN :orderIds " +
+           "ORDER BY d.dispatchDate DESC")
+    List<Dispatch> findAllByOrderIds(@Param("orderIds") Collection<Long> orderIds);
+
     @Query(value = """
             SELECT d.id FROM Dispatch d
             LEFT JOIN d.driver drv
