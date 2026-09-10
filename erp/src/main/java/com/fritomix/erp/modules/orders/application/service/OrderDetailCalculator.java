@@ -38,9 +38,15 @@ public class OrderDetailCalculator {
             order.getDetails().add(detail);
             totalBultos = totalBultos.add(dto.quantity());
 
-            if (product.getPesoTotalCargue() != null) {
-                pesoTotal = pesoTotal.add(product.getPesoTotalCargue().multiply(dto.quantity()));
+            BigDecimal unitWeight = BigDecimal.ZERO;
+            if (product.getPesoUnidad() != null && product.getPesoUnidad().compareTo(BigDecimal.ZERO) > 0) {
+                unitWeight = product.getPesoUnidad();
+            } else if (product.getPresentation() != null && product.getPresentation() > 0 
+                    && product.getWeightGrams() != null && product.getWeightGrams() > 0) {
+                unitWeight = BigDecimal.valueOf((long) product.getPresentation() * product.getWeightGrams())
+                        .divide(BigDecimal.valueOf(1000), 4, java.math.RoundingMode.HALF_UP);
             }
+            pesoTotal = pesoTotal.add(unitWeight.multiply(dto.quantity()));
         }
         order.setPesoTotalCargue(pesoTotal);
         order.setTotal(totalBultos);

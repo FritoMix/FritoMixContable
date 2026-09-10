@@ -26,6 +26,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
+    private final EmailTemplateBuilder emailTemplateBuilder;
 
     @Value("${app.notifications.email-enabled:true}")
     private boolean emailEnabled;
@@ -80,11 +81,20 @@ public class NotificationService {
         if (!emailEnabled || user.getEmail() == null || user.getEmail().isBlank()) {
             return;
         }
-        String body = message;
-        if (link != null && !link.isBlank()) {
-            body += "\n\nVer más: " + frontendUrl + link;
-        }
-        emailService.sendEmailQuietly(user.getEmail(), "[FritoMix] " + title, body);
+        String ctaLabel = (link != null && !link.isBlank()) ? "Ver en FritoMix" : null;
+        String ctaUrl   = (link != null && !link.isBlank()) ? frontendUrl + link : null;
+        String recipientName = (user.getFirstName() != null)
+                ? user.getFirstName() + " " + (user.getLastName() != null ? user.getLastName() : "")
+                : user.getEmail();
+        String html = emailTemplateBuilder.buildNotification(
+                recipientName.trim(),
+                title,
+                message,
+                "INFO",
+                ctaLabel,
+                ctaUrl
+        );
+        emailService.sendHtmlEmailQuietly(user.getEmail(), "[FritoMix] " + title, html);
     }
 
     @Transactional

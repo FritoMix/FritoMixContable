@@ -159,6 +159,8 @@ public class OrderMapper {
                 .observations(observationsPorProducto.get(detail.getProduct().getId()))
                 .detalleProducto(detalleProductoPorProducto.get(detail.getProduct().getId()))
                 .lote(lotePorProducto.get(detail.getProduct().getId()))
+                .presentation(detail.getProduct().getPresentation())
+                .weightGrams(detail.getProduct().getWeightGrams())
                 .build();
     }
 }
