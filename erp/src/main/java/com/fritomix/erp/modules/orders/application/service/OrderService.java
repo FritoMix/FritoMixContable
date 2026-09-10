@@ -9,10 +9,12 @@ import com.fritomix.erp.modules.customers.domain.entity.Customer;
 import com.fritomix.erp.modules.customers.domain.entity.CustomerAddress;
 import com.fritomix.erp.modules.customers.domain.repository.CustomerAddressRepository;
 import com.fritomix.erp.modules.customers.domain.repository.CustomerRepository;
+import com.fritomix.erp.modules.dispatch.domain.repository.DispatchRepository;
 import com.fritomix.erp.modules.orders.application.dto.request.OrderRequest;
 import com.fritomix.erp.modules.orders.application.dto.response.OrderResponse;
 import com.fritomix.erp.modules.orders.application.mapper.OrderMapper;
 import com.fritomix.erp.modules.orders.domain.entity.Order;
+import com.fritomix.erp.modules.orders.domain.entity.OrderDetail;
 import com.fritomix.erp.modules.orders.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -38,6 +40,7 @@ public class OrderService {
     private final OrderMapper mapper;
     private final OrderDetailCalculator detailCalculator;
     private final OrderNotifier orderNotifier;
+    private final DispatchRepository dispatchRepository;
 
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> findAll(String search, String status, List<String> statuses, Pageable pageable) {
@@ -68,7 +71,17 @@ public class OrderService {
         Map<Long, User> userMap = userRepository.findAllById(userIds)
                 .stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
-        return PageResponse.from(page, o -> mapper.toResponse(o, addressMap.get(o.getCustomer().getId()), userMap.get(o.getUserId())));
+        List<Long> orderIds = orders.stream().map(Order::getId).toList();
+        Map<Long, List<OrderDetail>> detailsByOrder = orderRepository.findDetailsByOrderIds(orderIds)
+                .stream()
+                .collect(Collectors.groupingBy(d -> d.getOrder().getId()));
+        Map<Long, com.fritomix.erp.modules.dispatch.domain.entity.Dispatch> dispatchByOrder = new java.util.HashMap<>();
+        dispatchRepository.findAllByOrderIds(orderIds).forEach(dispatch ->
+                dispatch.getOrders().forEach(o -> dispatchByOrder.putIfAbsent(o.getId(), dispatch)));
+        return PageResponse.from(page, o -> mapper.toResponse(o, addressMap.get(o.getCustomer().getId()),
+                userMap.get(o.getUserId()),
+                detailsByOrder.getOrDefault(o.getId(), java.util.Collections.emptyList()),
+                dispatchByOrder.get(o.getId())));
     }
 
     @Transactional(readOnly = true)
