@@ -13,6 +13,7 @@ import com.fritomix.erp.modules.orders.domain.entity.OrderDetail;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,7 +40,18 @@ public class OrderMapper {
     }
 
     public OrderResponse toResponse(Order order, CustomerAddress address, User user) {
-        List<OrderDetail> details = order.getDetails();
+        List<Dispatch> dispatches = dispatchRepository.findAllByOrderId(order.getId());
+        Dispatch dispatch = dispatches.isEmpty() ? null : dispatches.get(0);
+        return toResponse(order, address, user, order.getDetails(), dispatch, buildDetailMaps(dispatch));
+    }
+
+    public OrderResponse toResponse(Order order, CustomerAddress address, User user,
+                                    List<OrderDetail> details, Dispatch dispatch) {
+        return toResponse(order, address, user, details, dispatch, new DispatchDetailMaps());
+    }
+
+    private OrderResponse toResponse(Order order, CustomerAddress address, User user,
+                                     List<OrderDetail> details, Dispatch dispatch, DispatchDetailMaps maps) {
         if (details == null) details = Collections.emptyList();
 
         String phone = order.getCustomer().getPhone();
@@ -54,10 +66,6 @@ public class OrderMapper {
         String dispatchDriverPhone = null;
         String dispatchVehicleNumber = null;
         LocalDateTime dispatchDate = null;
-        Map<Long, String> detalleProductoPorProducto = new HashMap<>();
-        Map<Long, java.math.BigDecimal> deliveredPorProducto = new HashMap<>();
-        Map<Long, String> observationsPorProducto = new HashMap<>();
-        Map<Long, String> lotePorProducto = new HashMap<>();
 
         if (address != null && address.getCity() != null) {
             cityName = address.getCity().getName();
@@ -75,40 +83,20 @@ public class OrderMapper {
             }
         }
 
-        List<Dispatch> dispatches = dispatchRepository.findAllByOrderId(order.getId());
-        if (!dispatches.isEmpty()) {
-            Dispatch d = dispatches.get(0);
-            if (d.getDriver() != null) {
-                dispatchDriverName = d.getDriver().getName();
-                dispatchDriverDocument = d.getDriver().getDocument();
-                dispatchDriverPhone = d.getDriver().getPhone();
+        if (dispatch != null) {
+            if (dispatch.getDriver() != null) {
+                dispatchDriverName = dispatch.getDriver().getName();
+                dispatchDriverDocument = dispatch.getDriver().getDocument();
+                dispatchDriverPhone = dispatch.getDriver().getPhone();
             }
-            if (d.getVehicle() != null) {
-                dispatchVehicleNumber = d.getVehicle().getVehicleNumber();
+            if (dispatch.getVehicle() != null) {
+                dispatchVehicleNumber = dispatch.getVehicle().getVehicleNumber();
             }
-            if (d.getUserId() != null) {
-                User dispatchUser = userRepository.findById(d.getUserId()).orElse(null);
+            if (dispatch.getUserId() != null) {
+                User dispatchUser = userRepository.findById(dispatch.getUserId()).orElse(null);
                 dispatchUserName = dispatchUser != null ? (dispatchUser.getFirstName() + " " + dispatchUser.getLastName()).trim() : null;
             }
-            dispatchDate = d.getDispatchDate();
-            if (d.getDetails() != null) {
-                d.getDetails().forEach(dd -> {
-                    if (dd.getProduct() == null) return;
-                    Long pid = dd.getProduct().getId();
-                    if (dd.getDetalleProducto() != null && !dd.getDetalleProducto().isBlank()) {
-                        detalleProductoPorProducto.put(pid, dd.getDetalleProducto());
-                    }
-                    if (dd.getDelivered() != null) {
-                        deliveredPorProducto.put(pid, dd.getDelivered());
-                    }
-                    if (dd.getObservations() != null && !dd.getObservations().isBlank()) {
-                        observationsPorProducto.put(pid, dd.getObservations());
-                    }
-                    if (dd.getLote() != null && !dd.getLote().isBlank()) {
-                        lotePorProducto.put(pid, dd.getLote());
-                    }
-                });
-            }
+            dispatchDate = dispatch.getDispatchDate();
         }
 
         return OrderResponse.builder()
@@ -137,9 +125,38 @@ public class OrderMapper {
                 .dispatchDriverPhone(dispatchDriverPhone)
                 .dispatchVehicleNumber(dispatchVehicleNumber)
                 .dispatchDate(dispatchDate)
-                .details(details.stream().map(d -> toDetailResponse(d, detalleProductoPorProducto, deliveredPorProducto, observationsPorProducto, lotePorProducto)).collect(Collectors.toList()))
+                .details(details.stream().map(d -> toDetailResponse(d, maps.detalleProductoPorProducto, maps.deliveredPorProducto, maps.observationsPorProducto, maps.lotePorProducto)).collect(Collectors.toList()))
                 .createdAt(order.getCreatedAt())
                 .build();
+    }
+
+    private DispatchDetailMaps buildDetailMaps(Dispatch dispatch) {
+        DispatchDetailMaps maps = new DispatchDetailMaps();
+        if (dispatch == null || dispatch.getDetails() == null) return maps;
+        dispatch.getDetails().forEach(dd -> {
+            if (dd.getProduct() == null) return;
+            Long pid = dd.getProduct().getId();
+            if (dd.getDetalleProducto() != null && !dd.getDetalleProducto().isBlank()) {
+                maps.detalleProductoPorProducto.put(pid, dd.getDetalleProducto());
+            }
+            if (dd.getDelivered() != null) {
+                maps.deliveredPorProducto.put(pid, dd.getDelivered());
+            }
+            if (dd.getObservations() != null && !dd.getObservations().isBlank()) {
+                maps.observationsPorProducto.put(pid, dd.getObservations());
+            }
+            if (dd.getLote() != null && !dd.getLote().isBlank()) {
+                maps.lotePorProducto.put(pid, dd.getLote());
+            }
+        });
+        return maps;
+    }
+
+    private static final class DispatchDetailMaps {
+        final Map<Long, String> detalleProductoPorProducto = new HashMap<>();
+        final Map<Long, BigDecimal> deliveredPorProducto = new HashMap<>();
+        final Map<Long, String> observationsPorProducto = new HashMap<>();
+        final Map<Long, String> lotePorProducto = new HashMap<>();
     }
 
     private OrderDetailResponse toDetailResponse(OrderDetail detail, Map<Long, String> detalleProductoPorProducto,
