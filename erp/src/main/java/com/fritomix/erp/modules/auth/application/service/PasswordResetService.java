@@ -7,6 +7,7 @@ import com.fritomix.erp.modules.auth.domain.repository.UserRepository;
 import com.fritomix.erp.modules.auth.exception.InvalidPasswordResetCodeException;
 import com.fritomix.erp.modules.auth.exception.UserNotFoundException;
 import com.fritomix.erp.modules.notifications.application.service.EmailService;
+import com.fritomix.erp.modules.notifications.application.service.EmailTemplateBuilder;
 import com.fritomix.erp.modules.settings.application.service.SettingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class PasswordResetService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final SettingService settingService;
+    private final EmailTemplateBuilder emailTemplateBuilder;
 
     /**
      * Solicita un código de restablecimiento. No revela si el correo existe
@@ -56,10 +58,10 @@ public class PasswordResetService {
                 .build();
         resetCodeRepository.save(entity);
 
-        emailService.sendEmail(
+        emailService.sendHtmlEmail(
                 normalized,
                 "Código para restablecer tu contraseña - FritoMix",
-                buildEmailBody(code)
+                buildHtmlEmailBody(normalized, code)
         );
     }
 
@@ -126,12 +128,16 @@ public class PasswordResetService {
         return sb.toString();
     }
 
-    private String buildEmailBody(String code) {
-        return "Hola,\n\n"
-                + "Recibimos una solicitud para restablecer tu contraseña de FritoMix. "
-                + "Utiliza el siguiente código para continuar:\n\n"
-                + code + "\n\n"
-                + "El código es válido por 15 minutos. Si no lo solicitaste, ignora este correo.\n\n"
-                + "Gracias,\nEquipo FritoMix";
+    private String buildHtmlEmailBody(String email, String code) {
+        // Busca el nombre del usuario para personalizar el saludo
+        String recipientName = userRepository.findByEmail(email)
+                .map(u -> {
+                    if (u.getFirstName() != null && !u.getFirstName().isBlank()) {
+                        return u.getFirstName() + (u.getLastName() != null ? " " + u.getLastName() : "");
+                    }
+                    return email;
+                })
+                .orElse(email);
+        return emailTemplateBuilder.buildPasswordReset(recipientName.trim(), code);
     }
 }

@@ -50,6 +50,8 @@ public record OrderResponse(
             BigDecimal delivered,
             String observations,
             String detalleProducto,
-            String lote
+            String lote,
+            Integer presentation,
+            Integer weightGrams
     ) {}
 }

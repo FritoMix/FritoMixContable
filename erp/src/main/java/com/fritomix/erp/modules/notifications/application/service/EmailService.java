@@ -1,10 +1,12 @@
 package com.fritomix.erp.modules.notifications.application.service;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -12,7 +14,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -36,25 +37,53 @@ public class EmailService {
         this.mailFrom = resolveFromDotenv("MAIL_FROM", mailFrom);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Public API
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
-     * Envía un correo de forma síncrona. Si el envío falla lanza una excepción
-     * para que el error sea visible y no se pierda en silencio.
+     * Envía un correo con contenido HTML.
+     * Si el envío falla lanza una excepción para que el error sea visible.
+     */
+    public void sendHtmlEmail(String to, String subject, String htmlBody) {
+        if (to == null || to.isBlank()) {
+            throw new IllegalArgumentException("Destinatario de correo vacío");
+        }
+        if (brevoApiKey != null && !brevoApiKey.isBlank()) {
+            sendHtmlViaBrevo(to, subject, htmlBody);
+        } else {
+            sendHtmlViaSmtp(to, subject, htmlBody);
+        }
+    }
+
+    /**
+     * Variante silenciosa de {@link #sendHtmlEmail}: registra el error y continúa.
+     * Útil para notificaciones secundarias donde un fallo de correo no debe
+     * interrumpir la operación principal.
+     */
+    public void sendHtmlEmailQuietly(String to, String subject, String htmlBody) {
+        try {
+            sendHtmlEmail(to, subject, htmlBody);
+        } catch (Exception e) {
+            log.warn("No se pudo enviar email HTML a {}: {}", to, e.getMessage());
+        }
+    }
+
+    /**
+     * Envía un correo de texto plano (compatibilidad con código legado).
      */
     public void sendEmail(String to, String subject, String body) {
         if (to == null || to.isBlank()) {
             throw new IllegalArgumentException("Destinatario de correo vacío");
         }
         if (brevoApiKey != null && !brevoApiKey.isBlank()) {
-            sendViaBrevo(to, subject, body);
+            sendTextViaBrevo(to, subject, body);
         } else {
-            sendViaSmtp(to, subject, body);
+            sendTextViaSmtp(to, subject, body);
         }
     }
 
-    /**
-     * Variante que nunca lanza: registra el error y continúa. Útil para notificaciones
-     * secundarias donde un fallo de correo no debe interrumpir la operación principal.
-     */
+    /** Variante silenciosa de {@link #sendEmail}. */
     public void sendEmailQuietly(String to, String subject, String body) {
         try {
             sendEmail(to, subject, body);
@@ -63,18 +92,36 @@ public class EmailService {
         }
     }
 
-    private void sendViaBrevo(String to, String subject, String body) {
-        if (mailFrom == null || mailFrom.isBlank()) {
-            throw new IllegalStateException(
-                    "mail.from no configurado: define MAIL_FROM con un remitente verificado en Brevo");
-        }
+    // ─────────────────────────────────────────────────────────────────────────
+    // Brevo
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void sendHtmlViaBrevo(String to, String subject, String htmlBody) {
+        requireMailFrom();
         Map<String, Object> payload = Map.of(
-                "sender", Map.of("name", "FritoMix", "email", mailFrom),
-                "to", java.util.List.of(Map.of("email", to)),
-                "subject", subject,
+                "sender",      Map.of("name", "FritoMix", "email", mailFrom),
+                "to",          java.util.List.of(Map.of("email", to)),
+                "subject",     subject,
+                "htmlContent", htmlBody
+        );
+        String response = postToBrevo(payload);
+        log.info("Email HTML enviado a {} via Brevo: {} (respuesta: {})", to, subject, response);
+    }
+
+    private void sendTextViaBrevo(String to, String subject, String body) {
+        requireMailFrom();
+        Map<String, Object> payload = Map.of(
+                "sender",      Map.of("name", "FritoMix", "email", mailFrom),
+                "to",          java.util.List.of(Map.of("email", to)),
+                "subject",     subject,
                 "textContent", body
         );
-        String response = restClient.post()
+        String response = postToBrevo(payload);
+        log.info("Email texto enviado a {} via Brevo: {} (respuesta: {})", to, subject, response);
+    }
+
+    private String postToBrevo(Map<String, Object> payload) {
+        return restClient.post()
                 .uri(BREVO_API_URL)
                 .header("api-key", brevoApiKey)
                 .header("Accept", "application/json")
@@ -86,28 +133,58 @@ public class EmailService {
                     try {
                         detail = new String(res.getBody().readAllBytes());
                     } catch (Exception ignored) {
-                        // sin detalle adicional
                     }
                     throw new RuntimeException(
                             "Brevo respondió " + res.getStatusCode() + ": " + detail);
                 })
                 .body(String.class);
-        log.info("Email enviado a {} via Brevo: {} (respuesta: {})", to, subject, response);
     }
 
-    private void sendViaSmtp(String to, String subject, String body) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(to);
-        message.setSubject(subject);
-        message.setText(body);
-        mailSender.send(message);
-        log.info("Email enviado a {} via SMTP: {}", to, subject);
+    private void requireMailFrom() {
+        if (mailFrom == null || mailFrom.isBlank()) {
+            throw new IllegalStateException(
+                    "mail.from no configurado: define MAIL_FROM con un remitente verificado en Brevo");
+        }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SMTP
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void sendHtmlViaSmtp(String to, String subject, String htmlBody) {
+        try {
+            MimeMessage mime = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mime, "UTF-8");
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlBody, true); // true = HTML
+            mailSender.send(mime);
+            log.info("Email HTML enviado a {} via SMTP: {}", to, subject);
+        } catch (MessagingException e) {
+            throw new RuntimeException("Error al enviar email HTML via SMTP", e);
+        }
+    }
+
+    private void sendTextViaSmtp(String to, String subject, String body) {
+        try {
+            MimeMessage mime = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mime, "UTF-8");
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(body, false);
+            mailSender.send(mime);
+            log.info("Email texto enviado a {} via SMTP: {}", to, subject);
+        } catch (MessagingException e) {
+            throw new RuntimeException("Error al enviar email texto via SMTP", e);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // .env resolver
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
      * Si el valor configurado está vacío, intenta leerlo del archivo .env local.
-     * Así el envío por Brevo funciona en desarrollo sin depender de cómo se
-     * arranque la aplicación (IDE, terminal, etc.).
      */
     String resolveFromDotenv(String envKey, String configured) {
         if (configured != null && !configured.isBlank()) {
