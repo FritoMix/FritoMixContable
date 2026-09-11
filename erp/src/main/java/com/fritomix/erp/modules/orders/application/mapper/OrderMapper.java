@@ -89,7 +89,9 @@ public class OrderMapper {
                 dispatchDriverDocument = dispatch.getDriver().getDocument();
                 dispatchDriverPhone = dispatch.getDriver().getPhone();
             }
-            if (dispatch.getVehicle() != null) {
+            if (org.springframework.util.StringUtils.hasText(dispatch.getVehiclePlate())) {
+                dispatchVehicleNumber = dispatch.getVehiclePlate().trim();
+            } else if (dispatch.getVehicle() != null) {
                 dispatchVehicleNumber = dispatch.getVehicle().getVehicleNumber();
             }
             if (dispatch.getUserId() != null) {

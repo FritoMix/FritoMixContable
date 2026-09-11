@@ -160,7 +160,7 @@ public class ReportsService {
                 .address(address)
                 .dispatchDate(dispatch.getDispatchDate())
                 .driverName(dispatch.getDriver() != null ? dispatch.getDriver().getName() : null)
-                .vehicleNumber(dispatch.getVehicle() != null ? dispatch.getVehicle().getVehicleNumber() : null)
+                .vehicleNumber(org.springframework.util.StringUtils.hasText(dispatch.getVehiclePlate()) ? dispatch.getVehiclePlate().trim() : (dispatch.getVehicle() != null ? dispatch.getVehicle().getVehicleNumber() : null))
                 .status(dispatch.getStatus())
                 .pesoTotal(pesoTotal)
                 .build();
