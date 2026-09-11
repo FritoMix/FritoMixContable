@@ -408,7 +408,6 @@ public class DispatchService {
             Vehicle vehicle = vehicleRepository.findById(request.vehicleId())
                     .orElseThrow(() -> new ResourceNotFoundException("Vehículo no encontrado con id: " + request.vehicleId()));
             dispatch.setVehicle(vehicle);
-            dispatch.setVehiclePlate(vehicle.getVehicleNumber());
         }
 
         if (request.dispatchNumber() != null) dispatch.setDispatchNumber(request.dispatchNumber());
