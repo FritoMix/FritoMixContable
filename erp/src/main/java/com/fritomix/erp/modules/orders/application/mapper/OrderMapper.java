@@ -99,6 +99,27 @@ public class OrderMapper {
             dispatchDate = dispatch.getDispatchDate();
         }
 
+        // Si el pesoTotalCargue guardado en BD es null o 0 (pedidos creados antes de configurar
+        // pesos en productos), se recalcula dinámicamente desde los detalles para garantizar
+        // consistencia entre entornos local y producción.
+        BigDecimal pesoTotalCargue = order.getPesoTotalCargue();
+        if (pesoTotalCargue == null || pesoTotalCargue.compareTo(BigDecimal.ZERO) == 0) {
+            pesoTotalCargue = details.stream()
+                    .map(d -> {
+                        BigDecimal unitWeight = BigDecimal.ZERO;
+                        if (d.getProduct().getPesoUnidad() != null
+                                && d.getProduct().getPesoUnidad().compareTo(BigDecimal.ZERO) > 0) {
+                            unitWeight = d.getProduct().getPesoUnidad();
+                        } else if (d.getProduct().getPresentation() != null && d.getProduct().getPresentation() > 0
+                                && d.getProduct().getWeightGrams() != null && d.getProduct().getWeightGrams() > 0) {
+                            unitWeight = BigDecimal.valueOf((long) d.getProduct().getPresentation() * d.getProduct().getWeightGrams())
+                                    .divide(BigDecimal.valueOf(1000), 4, java.math.RoundingMode.HALF_UP);
+                        }
+                        return unitWeight.multiply(d.getQuantity() != null ? d.getQuantity() : BigDecimal.ZERO);
+                    })
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
         return OrderResponse.builder()
                 .id(order.getId())
                 .orderNumber(order.getOrderNumber())
@@ -117,7 +138,7 @@ public class OrderMapper {
                 .orderDate(order.getOrderDate())
                 .status(order.getStatus())
                 .total(order.getTotal())
-                .pesoTotalCargue(order.getPesoTotalCargue())
+                .pesoTotalCargue(pesoTotalCargue)
                 .notes(order.getNotes())
                 .dispatchUserName(dispatchUserName)
                 .dispatchDriverName(dispatchDriverName)
