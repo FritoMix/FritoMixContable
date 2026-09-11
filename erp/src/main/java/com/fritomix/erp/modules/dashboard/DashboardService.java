@@ -93,7 +93,7 @@ public class DashboardService {
             for (Object[] row : rows) {
                 int month = ((Number) row[0]).intValue();
                 long count = ((Number) row[1]).longValue();
-                BigDecimal total = (BigDecimal) row[2];
+                BigDecimal total = row[2] != null ? new BigDecimal(row[2].toString()) : BigDecimal.ZERO;
                 String monthName = switch (month) {
                     case 1 -> "Ene"; case 2 -> "Feb"; case 3 -> "Mar"; case 4 -> "Abr";
                     case 5 -> "May"; case 6 -> "Jun"; case 7 -> "Jul"; case 8 -> "Ago";
