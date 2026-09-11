@@ -7,9 +7,9 @@ logging:
 spring:
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/fritomix_erp
-    username: postgres
-    password: ${DB_PASSWORD:123456}
+    url: ${SPRING_DATASOURCE_URL:${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:fritomix_erp}}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:${DB_USERNAME:postgres}}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:123456}}
 
   jpa:
     open-in-view: false

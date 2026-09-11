@@ -1,21 +1,28 @@
-# ── Build stage ─────────────────────────────────────────────
-FROM eclipse-temurin:21-jdk AS build
+# ═══════════════════════════════════════════════════════════════
+#  STAGE 1: Build Spring Boot Jar with Maven
+# ═══════════════════════════════════════════════════════════════
+FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
 WORKDIR /app
 
-COPY .mvn .mvn
-COPY mvnw pom.xml ./
-RUN chmod +x mvnw && ./mvnw -q dependency:go-offline
+# Cache Maven dependencies
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
 
-COPY src src
-RUN ./mvnw -q clean package -DskipTests
+# Copy source code and build production jar
+COPY src ./src
+RUN mvn package -DskipTests
 
-# ── Runtime stage ───────────────────────────────────────────
-FROM eclipse-temurin:21-jre
+# ═══════════════════════════════════════════════════════════════
+#  STAGE 2: Lightweight JRE Runtime
+# ═══════════════════════════════════════════════════════════════
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-RUN useradd -m -u 1001 appuser && chown -R appuser /app
-USER appuser
 
-COPY --from=build /app/target/erp-0.0.1-SNAPSHOT.jar app.jar
+# Copy built artifact from Stage 1
+COPY --from=builder /app/target/*.jar app.jar
 
+# Expose Spring Boot port
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=prod"]
+
+# Run Spring Boot application
+ENTRYPOINT ["java", "-jar", "app.jar"]
