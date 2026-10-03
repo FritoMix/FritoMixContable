@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class SecurityPropertiesValidatorTest {
 
     private static final String WEAK_SECRET = "ZGV2LW9ubHktc2VjcmV0LW5vdC12YWxpZC1mb3ItcHJvZA==";
+    private static final String UNCONFIGURED_SECRET = "CHANGE_ME_IN_PRODUCTION";
     private static final String STRONG_SECRET = "x7kP2mQ9vL4nR8sT1uW6yZ3aB5cD0eFgHjK1lM2nO3pQ4rS5tU6vW7xY8z";
 
     private SecurityPropertiesValidator validator(String secret, String dbPassword, String profiles) {
@@ -21,9 +22,25 @@ class SecurityPropertiesValidatorTest {
     }
 
     @Test
-    void validate_shouldThrowInProdWithWeakJwtSecret() {
+    void validate_shouldThrowWithWeakJwtSecret() {
         assertThrows(IllegalStateException.class,
                 () -> validator(WEAK_SECRET, "strong-db-pass", "prod").validate());
+    }
+
+    @Test
+    void validate_shouldThrowWithUnconfiguredJwtSecret() {
+        assertThrows(IllegalStateException.class,
+                () -> validator(UNCONFIGURED_SECRET, "strong-db-pass", "prod").validate());
+        assertThrows(IllegalStateException.class,
+                () -> validator(UNCONFIGURED_SECRET, "strong-db-pass", "dev").validate());
+    }
+
+    @Test
+    void validate_shouldThrowWhenJwtSecretMissing() {
+        assertThrows(IllegalStateException.class,
+                () -> validator("", "strong-db-pass", "dev").validate());
+        assertThrows(IllegalStateException.class,
+                () -> validator(null, "strong-db-pass", "dev").validate());
     }
 
     @Test
@@ -39,8 +56,8 @@ class SecurityPropertiesValidatorTest {
     }
 
     @Test
-    void validate_shouldNotFailOutsideProd() {
-        assertDoesNotThrow(() -> validator(WEAK_SECRET, "123456", "dev").validate());
-        assertDoesNotThrow(() -> validator(WEAK_SECRET, "123456", "").validate());
+    void validate_shouldPassOutsideProdWithStrongSecret() {
+        assertDoesNotThrow(() -> validator(STRONG_SECRET, "123456", "dev").validate());
+        assertDoesNotThrow(() -> validator(STRONG_SECRET, "123456", "").validate());
     }
 }

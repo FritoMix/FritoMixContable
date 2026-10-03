@@ -16,6 +16,7 @@ import jakarta.annotation.PostConstruct;
 public class SecurityPropertiesValidator {
 
     private static final String WEAK_JWT_SECRET = "ZGV2LW9ubHktc2VjcmV0LW5vdC12YWxpZC1mb3ItcHJvZA==";
+    private static final String UNCONFIGURED_JWT_SECRET = "CHANGE_ME_IN_PRODUCTION";
     private static final String WEAK_DB_PASSWORD = "123456";
 
     private final JwtProperties jwtProperties;
@@ -33,14 +34,20 @@ public class SecurityPropertiesValidator {
 
     @PostConstruct
     public void validate() {
-        if (!StringUtils.hasText(activeProfiles) || !activeProfiles.contains("prod")) {
-            return;
+        if (!StringUtils.hasText(jwtProperties.getSecret())) {
+            throw new IllegalStateException(
+                    "Arranque abortado: JWT_SECRET no fue configurado. " +
+                    "Genera uno con: openssl rand -base64 64");
         }
-        if (WEAK_JWT_SECRET.equals(jwtProperties.getSecret())) {
+        if (WEAK_JWT_SECRET.equals(jwtProperties.getSecret())
+                || UNCONFIGURED_JWT_SECRET.equals(jwtProperties.getSecret())) {
             throw new IllegalStateException(
                     "Arranque abortado: JWT_SECRET no fue configurado. " +
                     "En producción se requiere un secreto JWT generado con: " +
                     "openssl rand -base64 64");
+        }
+        if (!StringUtils.hasText(activeProfiles) || !activeProfiles.contains("prod")) {
+            return;
         }
         if (WEAK_DB_PASSWORD.equals(dbPassword)) {
             throw new IllegalStateException(

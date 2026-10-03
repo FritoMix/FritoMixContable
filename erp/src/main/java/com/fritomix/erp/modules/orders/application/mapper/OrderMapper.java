@@ -139,6 +139,7 @@ public class OrderMapper {
                 .approvedAt(order.getApprovedAt())
                 .orderDate(order.getOrderDate())
                 .status(order.getStatus())
+                .tipoPedido(order.getTipoPedido() != null ? order.getTipoPedido() : "pedido_unico")
                 .total(order.getTotal())
                 .pesoTotalCargue(pesoTotalCargue)
                 .notes(order.getNotes())
