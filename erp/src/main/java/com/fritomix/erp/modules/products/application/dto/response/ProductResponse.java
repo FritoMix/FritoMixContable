@@ -16,6 +16,7 @@ public record ProductResponse(
         Integer presentation,
         String weight,
         Integer weightGrams,
+        String image,
         Long categoryId,
         String categoryName,
         BigDecimal pesoUnidad,

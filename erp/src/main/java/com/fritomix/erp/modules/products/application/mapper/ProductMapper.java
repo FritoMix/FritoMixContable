@@ -18,6 +18,7 @@ public class ProductMapper {
                 .presentation(product.getPresentation())
                 .weight(product.getWeight())
                 .weightGrams(product.getWeightGrams())
+                .image(product.getImage())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
                 .pesoUnidad(product.getPesoUnidad())

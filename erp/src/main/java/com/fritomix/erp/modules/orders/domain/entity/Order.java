@@ -38,6 +38,10 @@ public class Order {
     @Column(nullable = false, length = 30)
     private String status;
 
+    @Column(name = "tipo_pedido", nullable = false, length = 30)
+    @Builder.Default
+    private String tipoPedido = "pedido_unico";
+
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal total;
 
