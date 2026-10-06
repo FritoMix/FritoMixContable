@@ -7,7 +7,7 @@ import com.fritomix.erp.modules.dispatch.domain.repository.DispatchRepository;
 import com.fritomix.erp.modules.orders.domain.entity.Order;
 import com.fritomix.erp.modules.orders.domain.entity.OrderDetail;
 import com.fritomix.erp.modules.orders.domain.repository.OrderRepository;
-import com.fritomix.erp.modules.reports.api.ReportsDTO;
+import com.fritomix.erp.modules.reports.application.dto.ReportsDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

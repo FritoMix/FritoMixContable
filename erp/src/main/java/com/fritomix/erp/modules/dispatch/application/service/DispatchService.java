@@ -18,8 +18,6 @@ import com.fritomix.erp.modules.dispatch.domain.entity.DispatchDetail;
 import com.fritomix.erp.modules.dispatch.domain.repository.DispatchRepository;
 import com.fritomix.erp.modules.drivers.domain.entity.Driver;
 import com.fritomix.erp.modules.drivers.domain.repository.DriverRepository;
-import com.fritomix.erp.modules.orders.application.dto.response.OrderResponse;
-import com.fritomix.erp.modules.orders.application.mapper.OrderMapper;
 import com.fritomix.erp.modules.orders.application.service.OrderStatusRules;
 import com.fritomix.erp.modules.orders.domain.entity.Order;
 import com.fritomix.erp.modules.orders.domain.repository.OrderRepository;
@@ -54,7 +52,6 @@ public class DispatchService {
     private final VehicleRepository vehicleRepository;
     private final ProductRepository productRepository;
     private final DispatchMapper mapper;
-    private final OrderMapper orderMapper;
     private final DispatchNotifier dispatchNotifier;
     private final UserRepository userRepository;
     private final EntityManager em;
@@ -137,13 +134,6 @@ public class DispatchService {
                 .map(this::toResponseWithFacturas)
                 .toList();
         return PageResponse.of(content, ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
-    }
-
-    @Transactional(readOnly = true)
-    public List<OrderResponse> listosParaCargue() {
-        return orderRepository.findReadyForDispatch().stream()
-                .map(orderMapper::toResponse)
-                .toList();
     }
 
     @Transactional(readOnly = true)

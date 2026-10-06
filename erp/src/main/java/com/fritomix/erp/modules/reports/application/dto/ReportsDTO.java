@@ -1,4 +1,4 @@
-package com.fritomix.erp.modules.reports.api;
+package com.fritomix.erp.modules.reports.application.dto;
 
 import lombok.Builder;
 
