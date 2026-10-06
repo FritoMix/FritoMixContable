@@ -18,19 +18,33 @@ public class CategoryService {
 
     private static final Pattern IMAGE_DATA_URI = Pattern.compile("^data:image/(png|jpe?g|webp|gif|bmp);base64,.*$", Pattern.CASE_INSENSITIVE);
 
-    public record CategoryDTO(Long id, String name, String description, String image, Long parentId) {}
-    public record CategoryGroupDTO(Long id, String name, String description, String image, List<CategoryDTO> children) {}
+    public record CategoryDTO(Long id, String name, String description, String image, Long parentId, List<CategoryDTO> children, long itemCount, long subcategoriesCount) {}
+    public record CategoryGroupDTO(Long id, String name, String description, String image, List<CategoryDTO> children, long itemCount, long subcategoriesCount) {}
     public record CategoryCreateRequest(String name, String description, Long parentId) {}
+
+    private CategoryDTO mapToDTO(Category c) {
+        Long parentId = c.getParent() != null ? c.getParent().getId() : null;
+        List<CategoryDTO> children = categoryRepository.findByParentIdOrderByName(c.getId()).stream()
+                .map(this::mapToDTO)
+                .toList();
+        long itemCount = categoryRepository.countProductsByCategoryIdRecursive(c.getId());
+        long subcategoriesCount = categoryRepository.countSubcategoriesByParentId(c.getId());
+        return new CategoryDTO(c.getId(), c.getName(), c.getDescription(), c.getImage(), parentId, children, itemCount, subcategoriesCount);
+    }
+
+    private CategoryGroupDTO mapToGroupDTO(Category g) {
+        List<CategoryDTO> children = categoryRepository.findByParentIdOrderByName(g.getId()).stream()
+                .map(this::mapToDTO)
+                .toList();
+        long itemCount = categoryRepository.countProductsByCategoryIdRecursive(g.getId());
+        long subcategoriesCount = categoryRepository.countSubcategoriesByParentId(g.getId());
+        return new CategoryGroupDTO(g.getId(), g.getName(), g.getDescription(), g.getImage(), children, itemCount, subcategoriesCount);
+    }
 
     @Transactional(readOnly = true)
     public List<CategoryGroupDTO> findAllGroups() {
         List<Category> groups = categoryRepository.findByParentIsNullOrderByName();
-        return groups.stream().map(g -> {
-            List<CategoryDTO> children = categoryRepository.findByParentIdOrderByName(g.getId()).stream()
-                    .map(c -> new CategoryDTO(c.getId(), c.getName(), c.getDescription(), c.getImage(), g.getId()))
-                    .toList();
-            return new CategoryGroupDTO(g.getId(), g.getName(), g.getDescription(), g.getImage(), children);
-        }).toList();
+        return groups.stream().map(this::mapToGroupDTO).toList();
     }
 
     @Transactional(readOnly = true)
@@ -39,7 +53,7 @@ public class CategoryService {
             throw new ResourceNotFoundException("Grupo no encontrado con id: " + groupId);
         }
         return categoryRepository.findByParentIdOrderByName(groupId).stream()
-                .map(c -> new CategoryDTO(c.getId(), c.getName(), c.getDescription(), c.getImage(), groupId))
+                .map(this::mapToDTO)
                 .toList();
     }
 
@@ -47,8 +61,7 @@ public class CategoryService {
     public CategoryDTO findById(Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con id: " + id));
-        Long parentId = category.getParent() != null ? category.getParent().getId() : null;
-        return new CategoryDTO(category.getId(), category.getName(), category.getDescription(), category.getImage(), parentId);
+        return mapToDTO(category);
     }
 
     @Transactional
@@ -67,8 +80,7 @@ public class CategoryService {
                 .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con id: " + id));
         category.setImage(imageDataUri);
         category = categoryRepository.save(category);
-        Long parentId = category.getParent() != null ? category.getParent().getId() : null;
-        return new CategoryDTO(category.getId(), category.getName(), category.getDescription(), category.getImage(), parentId);
+        return mapToDTO(category);
     }
 
     @Transactional
@@ -81,7 +93,7 @@ public class CategoryService {
                 .description(request.description())
                 .build();
         group = categoryRepository.save(group);
-        return new CategoryDTO(group.getId(), group.getName(), group.getDescription(), group.getImage(), null);
+        return mapToDTO(group);
     }
 
     @Transactional
@@ -91,9 +103,6 @@ public class CategoryService {
         }
         Category parent = categoryRepository.findById(request.parentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Grupo no encontrado con id: " + request.parentId()));
-        if (parent.getParent() != null) {
-            throw new IllegalArgumentException("El parentId debe ser un grupo (no una subcategoría)");
-        }
         if (categoryRepository.existsByNameAndParentId(request.name(), request.parentId())) {
             throw new IllegalArgumentException("Ya existe una categoría con el nombre '" + request.name() + "' en este grupo");
         }
@@ -103,7 +112,7 @@ public class CategoryService {
                 .parent(parent)
                 .build();
         category = categoryRepository.save(category);
-        return new CategoryDTO(category.getId(), category.getName(), category.getDescription(), category.getImage(), parent.getId());
+        return mapToDTO(category);
     }
 
     @Transactional
@@ -132,8 +141,7 @@ public class CategoryService {
         }
 
         category = categoryRepository.save(category);
-        Long parentId = category.getParent() != null ? category.getParent().getId() : null;
-        return new CategoryDTO(category.getId(), category.getName(), category.getDescription(), category.getImage(), parentId);
+        return mapToDTO(category);
     }
 
     @Transactional

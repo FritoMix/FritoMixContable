@@ -23,6 +23,7 @@ public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
             WHERE (:search IS NULL
                    OR LOWER(d.dispatchNumber) LIKE LOWER(CAST(:search AS string))
                    OR LOWER(drv.name) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(d.vehiclePlate) LIKE LOWER(CAST(:search AS string))
                    OR LOWER(veh.vehicleNumber) LIKE LOWER(CAST(:search AS string))
                    OR EXISTS (SELECT o FROM d.orders o
                               WHERE LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))))
@@ -35,6 +36,7 @@ public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
             WHERE (:search IS NULL
                    OR LOWER(d.dispatchNumber) LIKE LOWER(CAST(:search AS string))
                    OR LOWER(drv.name) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(d.vehiclePlate) LIKE LOWER(CAST(:search AS string))
                    OR LOWER(veh.vehicleNumber) LIKE LOWER(CAST(:search AS string))
                    OR EXISTS (SELECT o FROM d.orders o
                               WHERE LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))))
@@ -48,6 +50,7 @@ public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
             WHERE (:search IS NULL
                    OR LOWER(d.dispatchNumber) LIKE LOWER(CAST(:search AS string))
                    OR LOWER(drv.name) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(d.vehiclePlate) LIKE LOWER(CAST(:search AS string))
                    OR LOWER(veh.vehicleNumber) LIKE LOWER(CAST(:search AS string))
                    OR EXISTS (SELECT o FROM d.orders o
                               WHERE LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))))
@@ -61,6 +64,7 @@ public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
             WHERE (:search IS NULL
                    OR LOWER(d.dispatchNumber) LIKE LOWER(CAST(:search AS string))
                    OR LOWER(drv.name) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(d.vehiclePlate) LIKE LOWER(CAST(:search AS string))
                    OR LOWER(veh.vehicleNumber) LIKE LOWER(CAST(:search AS string))
                    OR EXISTS (SELECT o FROM d.orders o
                               WHERE LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))))
@@ -73,6 +77,7 @@ public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
             LEFT JOIN d.vehicle veh
             WHERE (:search IS NULL
                    OR LOWER(d.dispatchNumber) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(d.vehiclePlate) LIKE LOWER(CAST(:search AS string))
                    OR LOWER(veh.vehicleNumber) LIKE LOWER(CAST(:search AS string))
                    OR EXISTS (SELECT o FROM d.orders o
                               WHERE LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))))
@@ -84,6 +89,7 @@ public interface DispatchRepository extends JpaRepository<Dispatch, Long> {
             LEFT JOIN d.vehicle veh
             WHERE (:search IS NULL
                    OR LOWER(d.dispatchNumber) LIKE LOWER(CAST(:search AS string))
+                   OR LOWER(d.vehiclePlate) LIKE LOWER(CAST(:search AS string))
                    OR LOWER(veh.vehicleNumber) LIKE LOWER(CAST(:search AS string))
                    OR EXISTS (SELECT o FROM d.orders o
                               WHERE LOWER(o.orderNumber) LIKE LOWER(CAST(:search AS string))))

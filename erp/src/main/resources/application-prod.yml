@@ -20,7 +20,10 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
       data-source-properties:
-        sslmode: require
+        # Produccion real (Render) exige TLS. El despliegue Docker local lo
+        # desactiva con DB_SSLMODE=disable: PostgreSQL corre sin SSL y el trafico
+        # nunca sale del host (el puerto publicado esta solo en 127.0.0.1).
+        sslmode: ${DB_SSLMODE:require}
 
   jpa:
     open-in-view: false

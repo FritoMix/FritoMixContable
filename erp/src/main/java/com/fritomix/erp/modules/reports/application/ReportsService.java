@@ -7,7 +7,7 @@ import com.fritomix.erp.modules.dispatch.domain.repository.DispatchRepository;
 import com.fritomix.erp.modules.orders.domain.entity.Order;
 import com.fritomix.erp.modules.orders.domain.entity.OrderDetail;
 import com.fritomix.erp.modules.orders.domain.repository.OrderRepository;
-import com.fritomix.erp.modules.reports.api.ReportsDTO;
+import com.fritomix.erp.modules.reports.application.dto.ReportsDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -160,7 +160,7 @@ public class ReportsService {
                 .address(address)
                 .dispatchDate(dispatch.getDispatchDate())
                 .driverName(dispatch.getDriver() != null ? dispatch.getDriver().getName() : null)
-                .vehicleNumber(dispatch.getVehicle() != null ? dispatch.getVehicle().getVehicleNumber() : null)
+                .vehicleNumber(org.springframework.util.StringUtils.hasText(dispatch.getVehiclePlate()) ? dispatch.getVehiclePlate().trim() : (dispatch.getVehicle() != null ? dispatch.getVehicle().getVehicleNumber() : null))
                 .status(dispatch.getStatus())
                 .pesoTotal(pesoTotal)
                 .build();
