@@ -1,234 +1,472 @@
 package com.fritomix.erp.modules.dispatch.application.service;
 
+import com.fritomix.erp.common.dto.PageResponse;
 import com.fritomix.erp.exception.PedidoYaDespachadoException;
+import com.fritomix.erp.exception.ProductoNotFoundException;
+import com.fritomix.erp.exception.ResourceNotFoundException;
+import com.fritomix.erp.modules.auth.application.dto.JwtUserInfo;
+import com.fritomix.erp.modules.auth.domain.entity.Role;
+import com.fritomix.erp.modules.auth.domain.entity.User;
+import com.fritomix.erp.modules.auth.domain.repository.UserRepository;
+import com.fritomix.erp.modules.dispatch.application.dto.request.ConfirmarPlacaRequest;
 import com.fritomix.erp.modules.dispatch.application.dto.request.DispatchRequest;
+import com.fritomix.erp.modules.dispatch.application.dto.response.DespachadorDto;
 import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse;
 import com.fritomix.erp.modules.dispatch.application.mapper.DispatchMapper;
+import com.fritomix.erp.modules.dispatch.domain.entity.Arrume;
 import com.fritomix.erp.modules.dispatch.domain.entity.Dispatch;
 import com.fritomix.erp.modules.dispatch.domain.entity.DispatchDetail;
 import com.fritomix.erp.modules.dispatch.domain.repository.DispatchRepository;
 import com.fritomix.erp.modules.drivers.domain.entity.Driver;
 import com.fritomix.erp.modules.drivers.domain.repository.DriverRepository;
-import com.fritomix.erp.modules.notifications.application.service.EmailService;
-import com.fritomix.erp.modules.notifications.application.service.NotificationService;
+import com.fritomix.erp.modules.orders.application.service.OrderStatusRules;
 import com.fritomix.erp.modules.orders.domain.entity.Order;
 import com.fritomix.erp.modules.orders.domain.repository.OrderRepository;
-import com.fritomix.erp.modules.products.domain.entity.Category;
 import com.fritomix.erp.modules.products.domain.entity.Product;
 import com.fritomix.erp.modules.products.domain.repository.ProductRepository;
 import com.fritomix.erp.modules.vehicles.domain.entity.Vehicle;
 import com.fritomix.erp.modules.vehicles.domain.repository.VehicleRepository;
-import org.junit.jupiter.api.BeforeEach;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class DispatchServiceTest {
 
-    @Mock
-    private DispatchRepository dispatchRepository;
+    @Mock private DispatchRepository dispatchRepository;
+    @Mock private OrderRepository orderRepository;
+    @Mock private DriverRepository driverRepository;
+    @Mock private VehicleRepository vehicleRepository;
+    @Mock private ProductRepository productRepository;
+    @Mock private DispatchMapper mapper;
+    @Mock private DispatchNotifier dispatchNotifier;
+    @Mock private UserRepository userRepository;
+    @Mock private EntityManager em;
 
-    @Mock
-    private OrderRepository orderRepository;
+    @InjectMocks private DispatchService service;
 
-    @Mock
-    private DriverRepository driverRepository;
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
-    @Mock
-    private VehicleRepository vehicleRepository;
+    private Order order(Long id, String status, String number) {
+        return Order.builder().id(id).orderNumber(number).status(status).build();
+    }
 
-    @Mock
-    private ProductRepository productRepository;
+    private Dispatch dispatch(Long id, String status) {
+        return Dispatch.builder().id(id).dispatchNumber("DES-1").status(status).build();
+    }
 
-    @Mock
-    private DispatchMapper mapper;
+    @Test
+    void findAllSinResultadosDevuelvePaginaVacia() {
+        Pageable pageable = PageRequest.of(0, 10);
+        PageImpl<Long> ids = new PageImpl<>(List.of(), pageable, 0);
+        when(dispatchRepository.findIds(null, pageable)).thenReturn(ids);
 
-    @Mock
-    private NotificationService notificationService;
+        PageResponse<DispatchResponse> result = service.findAll(null, null, pageable);
 
-    @Mock
-    private EmailService emailService;
+        assertEquals(0, result.content().size());
+        assertEquals(0, result.totalElements());
+    }
 
-    @Mock
-    private jakarta.persistence.EntityManager em;
+    @Test
+    void findAllConStatusesMapeaContenido() {
+        Pageable pageable = PageRequest.of(0, 10);
+        PageImpl<Long> ids = new PageImpl<>(List.of(1L), pageable, 1);
+        when(dispatchRepository.findIdsByStatuses(null, List.of("PENDIENTE"), pageable)).thenReturn(ids);
+        Dispatch d = dispatch(1L, "PENDIENTE");
+        when(dispatchRepository.findAllWithFetchByIds(List.of(1L))).thenReturn(List.of(d));
+        Query q = mock(Query.class);
+        when(em.createNativeQuery(anyString())).thenReturn(q);
+        when(q.setParameter(anyString(), any())).thenReturn(q);
+        when(q.getResultList()).thenReturn(List.of());
+        when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
-    @Mock
-    private jakarta.persistence.Query query;
+        PageResponse<DispatchResponse> result = service.findAll(null, List.of("PENDIENTE"), pageable);
 
-    @Mock
-    private DispatchNotifier dispatchNotifier;
+        assertEquals(1, result.content().size());
+    }
 
-    @InjectMocks
-    private DispatchService dispatchService;
+    @Test
+    void findByIdEncontradoYNulo() {
+        Dispatch d = dispatch(1L, "PENDIENTE");
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(d));
+        Query q = mock(Query.class);
+        when(em.createNativeQuery(anyString())).thenReturn(q);
+        when(q.setParameter(anyString(), anyLong())).thenReturn(q);
+        when(q.getResultList()).thenReturn(List.of());
+        when(mapper.toResponse(d)).thenReturn(mock(DispatchResponse.class));
 
-    private Order order;
-    private Driver driver;
-    private Vehicle vehicle;
-    private Product product;
-    private Dispatch dispatch;
-    private DispatchRequest validRequest;
+        assertNotNull(service.findById(1L));
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(em.createNativeQuery(anyString())).thenReturn(query);
-        lenient().when(query.setParameter(anyString(), any())).thenReturn(query);
-        lenient().when(query.getResultList()).thenReturn(List.of());
+        when(dispatchRepository.findById(9L)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> service.findById(9L));
+    }
 
-        Category category = Category.builder().id(1L).name("Test").build();
-        product = Product.builder().id(1L).code("PROD-001").name("Test Product").category(category).unit("CAJA").build();
+    @Test
+    void findAssignedToDriverVacioYConContenido() {
+        Pageable pageable = PageRequest.of(0, 10);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        new JwtUserInfo(5L, "d@x.com", "DRIVER", "D", "R", List.of()), null, List.of()));
+        PageImpl<Long> empty = new PageImpl<>(List.of(), pageable, 0);
+        when(dispatchRepository.findAssignedIds(null, 5L, pageable)).thenReturn(empty);
 
-        order = Order.builder().id(1L).orderNumber("ORD-001").build();
-        driver = Driver.builder().id(1L).name("Test Driver").build();
-        vehicle = Vehicle.builder().id(1L).vehicleNumber("VEH-001").build();
+        assertEquals(0, service.findAssignedToDriver(null, pageable).content().size());
 
-        DispatchDetail detail = DispatchDetail.builder()
-                .id(1L)
-                .product(product)
-                .quantity(new BigDecimal("10"))
-                .delivered(BigDecimal.ZERO)
+        PageImpl<Long> ids = new PageImpl<>(List.of(1L), pageable, 1);
+        when(dispatchRepository.findAssignedIds(null, 5L, pageable)).thenReturn(ids);
+        Dispatch d = dispatch(1L, "PENDIENTE");
+        when(dispatchRepository.findAllWithFetchByIds(List.of(1L))).thenReturn(List.of(d));
+        Query q = mock(Query.class);
+        org.mockito.Mockito.lenient().when(em.createNativeQuery(anyString())).thenReturn(q);
+        org.mockito.Mockito.lenient().when(q.setParameter(anyString(), any())).thenReturn(q);
+        // return array of objects as returned by native query (Object[])
+        org.mockito.Mockito.lenient().when(q.getResultList()).thenReturn(java.util.Arrays.asList((Object)new Object[]{1L, "F-1"}));
+        when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
+
+        assertEquals(1, service.findAssignedToDriver(null, pageable).content().size());
+    }
+
+    @Test
+    void findAssignedByMeSinUsuarioDevuelveVacio() {
+        Pageable pageable = PageRequest.of(0, 10);
+        assertEquals(0, service.findAssignedByMe(pageable).totalElements());
+    }
+
+    @Test
+    void misConfirmacionesSinUsuarioDevuelveVacio() {
+        Pageable pageable = PageRequest.of(0, 10);
+        assertEquals(0, service.misConfirmaciones(pageable).totalElements());
+    }
+
+    @Test
+    void despachadoresFiltraActivos() {
+        User u1 = User.builder().id(1L).firstName("Ana").lastName("Soto").email("a@x.com").enabled(true)
+                .role(Role.builder().name("DESPACHADOR3").build()).build();
+        User u2 = User.builder().id(2L).enabled(false).role(Role.builder().name("DESPACHADOR3").build()).build();
+        when(userRepository.findByRoleName("DESPACHADOR3")).thenReturn(List.of(u1, u2));
+
+        List<DespachadorDto> list = service.despachadores();
+
+        assertEquals(1, list.size());
+        assertEquals(1L, list.get(0).id());
+    }
+
+    @Test
+    void confirmarPlacaValidaTransicionYSolicitaObservacion() {
+        Dispatch d = dispatch(1L, DispatchFlow.STATUS_VEHICULO_ASIGNADO);
+        d.setVehiclePlate("OLD123");
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(d));
+        User desp = User.builder().id(10L).enabled(true).role(Role.builder().name("DESPACHADOR3").build()).build();
+        when(userRepository.findById(10L)).thenReturn(Optional.of(desp));
+        when(vehicleRepository.findByVehicleNumber("ABC123")).thenReturn(Optional.empty());
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        new JwtUserInfo(5L, "c@x.com", "ADMIN", "C", "L", List.of()), null, List.of()));
+        when(dispatchRepository.save(any(Dispatch.class))).thenAnswer(inv -> inv.getArgument(0));
+        Query q = mock(Query.class);
+        when(em.createNativeQuery(anyString())).thenReturn(q);
+        when(q.setParameter(anyString(), any())).thenReturn(q);
+        when(q.getResultList()).thenReturn(List.of());
+        when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.confirmarPlaca(1L, new ConfirmarPlacaRequest(10L, "ABC123", null)));
+
+        service.confirmarPlaca(1L, new ConfirmarPlacaRequest(10L, "ABC123", "Cambio de placa"));
+        verify(dispatchNotifier).notifyPlacaConfirmada(any(Dispatch.class), eq(desp));
+    }
+
+    @Test
+    void confirmarPlacaRechazaSiNoEsVehiculoAsignado() {
+        Dispatch d = dispatch(1L, DispatchFlow.STATUS_PENDIENTE);
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(d));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.confirmarPlaca(1L, new ConfirmarPlacaRequest(10L, "ABC123", null)));
+    }
+
+    @Test
+    void confirmarPlacaRechazaDespachadorInvalido() {
+        Dispatch d = dispatch(1L, DispatchFlow.STATUS_VEHICULO_ASIGNADO);
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(d));
+        User desp = User.builder().id(10L).enabled(true).role(Role.builder().name("CAJERO").build()).build();
+        when(userRepository.findById(10L)).thenReturn(Optional.of(desp));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.confirmarPlaca(1L, new ConfirmarPlacaRequest(10L, "ABC123", null)));
+    }
+
+    @Test
+    void asignarPlacaExitoso() {
+        Order o = order(1L, OrderStatusRules.STATUS_LISTO_PRODUCCION, "PED-1");
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(o));
+        when(dispatchRepository.findAllByOrderId(1L)).thenReturn(List.of());
+        Vehicle v = Vehicle.builder().id(5L).vehicleNumber("ABC123").build();
+        when(vehicleRepository.findByVehicleNumber("ABC123")).thenReturn(Optional.of(v));
+        when(dispatchRepository.save(any(Dispatch.class))).thenAnswer(inv -> {
+            Dispatch dd = inv.getArgument(0);
+            dd.setId(2L);
+            return dd;
+        });
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        new JwtUserInfo(5L, "u@x.com", "ADMIN", "U", "N", List.of()), null, List.of()));
+        Query q = mock(Query.class);
+        when(em.createNativeQuery(anyString())).thenReturn(q);
+        when(q.setParameter(anyString(), any())).thenReturn(q);
+        when(q.getResultList()).thenReturn(List.of());
+        when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
+
+        DispatchResponse resp = service.asignarPlaca(1L, "abc123");
+
+        assertNotNull(resp);
+        verify(dispatchNotifier).notifyCreated(any(Dispatch.class), any(), eq(null), eq(v), any());
+    }
+
+    @Test
+    void asignarPlacaRechazaEstadoInvalido() {
+        Order o = order(1L, OrderStatusRules.STATUS_APROBADO, "PED-1");
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(o));
+
+        assertThrows(IllegalArgumentException.class, () -> service.asignarPlaca(1L, "ABC123"));
+    }
+
+    @Test
+    void createConNumeroDuplicadoLanzaExcepcion() {
+        DispatchRequest req = DispatchRequest.builder().dispatchNumber("DES-1").build();
+        when(dispatchRepository.existsByDispatchNumber("DES-1")).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () -> service.create(req));
+    }
+
+    @Test
+    void createValidaTipoPedido() {
+        DispatchRequest req = DispatchRequest.builder().dispatchNumber("DES-1").tipoPedido("malo").build();
+        when(dispatchRepository.existsByDispatchNumber("DES-1")).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () -> service.create(req));
+    }
+
+    @Test
+    void createRequiereAlMenosUnPedido() {
+        DispatchRequest req = DispatchRequest.builder().dispatchNumber("DES-1").build();
+        when(dispatchRepository.existsByDispatchNumber("DES-1")).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () -> service.create(req));
+    }
+
+    @Test
+    void createPedidoUnicoSoloUnPedido() {
+        DispatchRequest req = DispatchRequest.builder().dispatchNumber("DES-1")
+                .tipoPedido("pedido_unico").orderIds(List.of(1L, 2L)).build();
+        when(dispatchRepository.existsByDispatchNumber("DES-1")).thenReturn(false);
+        when(orderRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(order(1L, "LISTO_PRODUCCION", "PED-1"), order(2L, "LISTO_PRODUCCION", "PED-2")));
+
+        assertThrows(IllegalArgumentException.class, () -> service.create(req));
+    }
+
+    @Test
+    void createConPedidoYaDespachadoLanzaExcepcion() {
+        DispatchRequest req = DispatchRequest.builder().dispatchNumber("DES-1")
+                .tipoPedido("pedido_unico").orderId(1L).build();
+        when(dispatchRepository.existsByDispatchNumber("DES-1")).thenReturn(false);
+        Order o = order(1L, OrderStatusRules.STATUS_LISTO_PRODUCCION, "PED-1");
+        when(orderRepository.findAllById(List.of(1L))).thenReturn(List.of(o));
+        when(dispatchRepository.findAllByOrderId(1L)).thenReturn(List.of(dispatch(5L, "DESPACHADO")));
+
+        assertThrows(PedidoYaDespachadoException.class, () -> service.create(req));
+    }
+
+    @Test
+    void createCompletoConDetallesYArrumes() {
+        DispatchRequest req = DispatchRequest.builder().dispatchNumber("DES-1")
+                .tipoPedido("pedido_unico").orderId(1L)
+                .driverId(1L).vehicleId(1L).userId(5L).status("PENDIENTE")
+                .details(List.of(DispatchRequest.DispatchDetailRequest.builder()
+                        .productId(1L).quantity(BigDecimal.ONE).build()))
+                .arrumes(List.of(DispatchRequest.ArrumeRequest.builder().numArrume(1).arrumeProducto("A").cantidad(BigDecimal.ONE).build()))
                 .build();
+        when(dispatchRepository.existsByDispatchNumber("DES-1")).thenReturn(false);
+        Order o = order(1L, OrderStatusRules.STATUS_LISTO_PRODUCCION, "PED-1");
+        when(orderRepository.findAllById(List.of(1L))).thenReturn(List.of(o));
+        when(dispatchRepository.findAllByOrderId(1L)).thenReturn(List.of());
+        when(driverRepository.findById(1L)).thenReturn(Optional.of(Driver.builder().id(1L).build()));
+        when(vehicleRepository.findById(1L)).thenReturn(Optional.of(Vehicle.builder().id(1L).build()));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(Product.builder().id(1L).build()));
+        when(dispatchRepository.save(any(Dispatch.class))).thenAnswer(inv -> {
+            Dispatch dd = inv.getArgument(0);
+            dd.setId(10L);
+            return dd;
+        });
+Query q = mock(Query.class);
+        org.mockito.Mockito.lenient().when(em.createNativeQuery(anyString())).thenReturn(q);
+        org.mockito.Mockito.lenient().when(q.setParameter(anyString(), any())).thenReturn(q);
+        org.mockito.Mockito.lenient().when(q.executeUpdate()).thenReturn(0);
+        org.mockito.Mockito.lenient().when(q.getResultList()).thenReturn(List.of());
+        when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
-        dispatch = Dispatch.builder()
-                .id(1L)
-                .orders(List.of(order))
-                .driver(driver)
-                .vehicle(vehicle)
-                .dispatchNumber("DES-001")
-                .status("LISTO_CARGUE")
-                .details(List.of(detail))
-                .build();
-
-        validRequest = DispatchRequest.builder()
-                .orderId(1L)
-                .driverId(1L)
-                .vehicleId(1L)
-                .dispatchNumber("DES-001")
-                .status("PENDIENTE")
-                .details(List.of(
-                        DispatchRequest.DispatchDetailRequest.builder()
-                                .productId(1L)
-                                .quantity(new BigDecimal("10"))
-                                .build()
-                ))
-                .build();
+        assertNotNull(service.create(req));
     }
 
     @Test
-    void create_shouldSucceed() {
-        when(dispatchRepository.existsByDispatchNumber("DES-001")).thenReturn(false);
-        when(orderRepository.findAllById(List.of(1L))).thenReturn(List.of(order));
-        when(dispatchRepository.findAllByOrderId(eq(1L))).thenReturn(List.of());
-        when(driverRepository.findById(1L)).thenReturn(Optional.of(driver));
-        when(vehicleRepository.findById(1L)).thenReturn(Optional.of(vehicle));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(dispatchRepository.save(any(Dispatch.class))).thenReturn(dispatch);
-        when(mapper.toResponse(any(Dispatch.class))).thenReturn(
-                DispatchResponse.builder().id(1L).dispatchNumber("DES-001").build());
+    void updateNoPermiteEditarCerrado() {
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(dispatch(1L, DispatchFlow.STATUS_DESPACHADO)));
 
-        DispatchResponse response = dispatchService.create(validRequest);
-
-        assertNotNull(response);
-        assertEquals("DES-001", response.dispatchNumber());
+        assertThrows(IllegalArgumentException.class,
+                () -> service.update(1L, DispatchRequest.builder().build()));
     }
 
     @Test
-    void create_shouldSucceedWithoutDriverOrVehicle() {
-        DispatchRequest request = DispatchRequest.builder()
-                .tipoPedido("pedido_unico")
-                .orderId(1L)
-                .dispatchNumber("DES-002")
-                .build();
+    void updateCambiaTipoPedidoYPedidos() {
+        Dispatch d = dispatch(1L, DispatchFlow.STATUS_PENDIENTE);
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(d));
+        DispatchRequest req = DispatchRequest.builder().tipoPedido("pedido_multipedido").orderIds(List.of(1L,2L)).build();
+        Order o1 = order(1L, OrderStatusRules.STATUS_LISTO_PRODUCCION, "PED-1");
+        Order o2 = order(2L, OrderStatusRules.STATUS_LISTO_PRODUCCION, "PED-2");
+        when(orderRepository.findAllById(List.of(1L,2L))).thenReturn(List.of(o1,o2));
+        when(dispatchRepository.findAllByOrderId(1L)).thenReturn(List.of());
+        when(dispatchRepository.findAllByOrderId(2L)).thenReturn(List.of());
+        when(dispatchRepository.save(any(Dispatch.class))).thenAnswer(inv -> inv.getArgument(0));
+        jakarta.persistence.Query q = org.mockito.Mockito.mock(jakarta.persistence.Query.class);
+        org.mockito.Mockito.lenient().when(em.createNativeQuery(anyString())).thenReturn(q);
+        org.mockito.Mockito.lenient().when(q.setParameter(anyString(), any())).thenReturn(q);
+        org.mockito.Mockito.lenient().when(q.getResultList()).thenReturn(java.util.Collections.emptyList());
+        when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
-        when(dispatchRepository.existsByDispatchNumber("DES-002")).thenReturn(false);
-        when(orderRepository.findAllById(List.of(1L))).thenReturn(List.of(order));
-        when(dispatchRepository.findAllByOrderId(eq(1L))).thenReturn(List.of());
-        when(dispatchRepository.save(any(Dispatch.class))).thenReturn(dispatch);
-        when(mapper.toResponse(any(Dispatch.class))).thenReturn(
-                DispatchResponse.builder().id(2L).dispatchNumber("DES-002").build());
-
-        DispatchResponse response = dispatchService.create(request);
-
-        assertNotNull(response);
-        assertEquals("DES-002", response.dispatchNumber());
-        verify(driverRepository, never()).findById(any());
-        verify(vehicleRepository, never()).findById(any());
+        service.update(1L, req);
+        assertEquals("pedido_multipedido", d.getTipoPedido());
     }
 
     @Test
-    void create_shouldThrowWhenDuplicateDispatchNumber() {
-        when(dispatchRepository.existsByDispatchNumber("DES-001")).thenReturn(true);
+    void updateRechazaPedidosVacios() {
+        Dispatch d = dispatch(1L, DispatchFlow.STATUS_PENDIENTE);
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(d));
+        DispatchRequest req = DispatchRequest.builder().orderIds(List.of()).build();
 
-        assertThrows(IllegalArgumentException.class, () -> dispatchService.create(validRequest));
-        verify(orderRepository, never()).findAllById(any());
+        assertThrows(IllegalArgumentException.class, () -> service.update(1L, req));
     }
 
     @Test
-    void create_shouldThrowWhenOrderAlreadyHasActiveDispatch() {
-        when(dispatchRepository.existsByDispatchNumber("DES-001")).thenReturn(false);
-        when(orderRepository.findAllById(List.of(1L))).thenReturn(List.of(order));
-        when(dispatchRepository.findAllByOrderId(eq(1L))).thenReturn(List.of(dispatch));
+    void updateCambiaConductorVehiculoNumeroFactura() {
+        Dispatch d = dispatch(1L, DispatchFlow.STATUS_PENDIENTE);
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(d));
+        DispatchRequest req = DispatchRequest.builder()
+                .driverId(1L).vehicleId(1L).dispatchNumber("DES-X").numeroFactura("F-1").status("VEHICULO_ASIGNADO").build();
+        when(driverRepository.findById(1L)).thenReturn(Optional.of(Driver.builder().id(1L).build()));
+        when(vehicleRepository.findById(1L)).thenReturn(Optional.of(Vehicle.builder().id(1L).build()));
+        when(dispatchRepository.save(any(Dispatch.class))).thenAnswer(inv -> inv.getArgument(0));
+        jakarta.persistence.Query q = org.mockito.Mockito.mock(jakarta.persistence.Query.class);
+        org.mockito.Mockito.lenient().when(em.createNativeQuery(anyString())).thenReturn(q);
+        org.mockito.Mockito.lenient().when(q.setParameter(anyString(), any())).thenReturn(q);
+        org.mockito.Mockito.lenient().when(q.getResultList()).thenReturn(java.util.Collections.emptyList());
+        when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
-        assertThrows(PedidoYaDespachadoException.class, () -> dispatchService.create(validRequest));
-        verify(driverRepository, never()).findById(any());
+        service.update(1L, req);
+        assertEquals("DES-X", d.getDispatchNumber());
     }
 
     @Test
-    void updateStatus_shouldSucceed() {
-        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(dispatch));
-        when(dispatchRepository.save(any(Dispatch.class))).thenReturn(dispatch);
-        when(mapper.toResponse(any(Dispatch.class))).thenReturn(
-                DispatchResponse.builder().id(1L).dispatchNumber("DES-001").status("DESPACHADO").build());
+    void deleteNoPermiteCerrado() {
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(dispatch(1L, DispatchFlow.STATUS_DESPACHADO)));
 
-        DispatchResponse response = dispatchService.updateStatus(1L, "DESPACHADO");
-
-        assertNotNull(response);
+        assertThrows(IllegalArgumentException.class, () -> service.delete(1L));
     }
 
     @Test
-    void delete_shouldSucceed() {
-        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(dispatch));
+    void deleteExitoso() {
+        Dispatch d = dispatch(1L, DispatchFlow.STATUS_PENDIENTE);
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(d));
 
-        dispatchService.delete(1L);
-
-        verify(dispatchRepository).delete(dispatch);
+        service.delete(1L);
+        verify(dispatchRepository).delete(d);
     }
 
     @Test
-    void delete_shouldThrowWhenDispatchDespachado() {
-        dispatch.setStatus("DESPACHADO");
-        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(dispatch));
+    void updateStatusDespapchadoNotifica() {
+        Dispatch d = dispatch(1L, DispatchFlow.STATUS_CONDUCTOR_ASIGNADO);
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(d));
+        when(dispatchRepository.save(any(Dispatch.class))).thenAnswer(inv -> inv.getArgument(0));
+        Query q = mock(Query.class);
+        when(em.createNativeQuery(anyString())).thenReturn(q);
+        when(q.setParameter(anyString(), any())).thenReturn(q);
+        when(q.getResultList()).thenReturn(List.of());
+        when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
-        assertThrows(IllegalArgumentException.class, () -> dispatchService.delete(1L));
-        verify(dispatchRepository, never()).delete(any());
+        service.updateStatus(1L, "despachado");
+
+        verify(dispatchNotifier).notifyDispatched(d);
     }
 
     @Test
-    void update_shouldThrowWhenDispatchDespachado() {
-        dispatch.setStatus("DESPACHADO");
-        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(dispatch));
+    void updateStatusInvalidoLanzaExcepcion() {
+        Dispatch d = dispatch(1L, DispatchFlow.STATUS_PENDIENTE);
+        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(d));
 
-        assertThrows(IllegalArgumentException.class, () -> dispatchService.update(1L, validRequest));
-        verify(dispatchRepository, never()).save(any());
+        assertThrows(IllegalArgumentException.class, () -> service.updateStatus(1L, "MALO"));
     }
 
     @Test
-    void updateStatus_shouldThrowOnBackwardTransition() {
-        dispatch.setStatus("PRODUCCION");
-        when(dispatchRepository.findById(1L)).thenReturn(Optional.of(dispatch));
+    void findHistoryByOrderIdRetornaLista() {
+        when(dispatchRepository.findAllByOrderId(1L)).thenReturn(List.of(dispatch(1L, "DESPACHADO")));
+        Query q = mock(Query.class);
+        when(em.createNativeQuery(anyString())).thenReturn(q);
+        when(q.setParameter(anyString(), any())).thenReturn(q);
+        when(q.getResultList()).thenReturn(List.of());
+        when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
-        assertThrows(IllegalArgumentException.class, () -> dispatchService.updateStatus(1L, "PENDIENTE"));
-        verify(dispatchRepository, never()).save(any());
+        assertEquals(1, service.findHistoryByOrderId(1L).size());
+    }
+
+    @Test
+    void findByDateRangeVacioYConContenido() {
+        Pageable pageable = PageRequest.of(0, 10);
+        LocalDateTime desde = LocalDateTime.now().minusDays(1);
+        LocalDateTime hasta = LocalDateTime.now();
+        PageImpl<Long> empty = new PageImpl<>(List.of(), pageable, 0);
+        when(dispatchRepository.findIdsBetweenDates(desde, hasta, pageable)).thenReturn(empty);
+
+        assertEquals(0, service.findByDateRange(desde, hasta, pageable).content().size());
+
+        PageImpl<Long> ids = new PageImpl<>(List.of(1L), pageable, 1);
+        when(dispatchRepository.findIdsBetweenDates(desde, hasta, pageable)).thenReturn(ids);
+        when(dispatchRepository.findAllWithFetchByIds(List.of(1L))).thenReturn(List.of(dispatch(1L, "PENDIENTE")));
+        Query q = mock(Query.class);
+        when(em.createNativeQuery(anyString())).thenReturn(q);
+        when(q.setParameter(anyString(), any())).thenReturn(q);
+        when(q.getResultList()).thenReturn(List.of());
+        when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
+
+        assertEquals(1, service.findByDateRange(desde, hasta, pageable).content().size());
     }
 }
