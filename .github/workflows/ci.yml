@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, test, uat, main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend · mvn verify + gate JaCoCo
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: erp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 21 + caché de Maven
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Compilar, testear y aplicar el gate de cobertura
+        run: ./mvnw -B verify
+
+      - name: Resumen de cobertura
+        if: always()
+        run: |
+          if [ -f target/site/jacoco/jacoco.csv ]; then
+            {
+              echo "## Cobertura"
+              echo "| Métrica | Cubierto | Total | % |"
+              echo "|---|---:|---:|---:|"
+              awk -F, 'NR>1{ml+=$4; cl+=$5; mb+=$6; cb+=$7} END{
+                printf "| Lineas | %d | %d | %.2f%% |\n", cl, ml, (ml?100*cl/ml:0);
+                printf "| Ramas  | %d | %d | %.2f%% |\n", cb, mb, (mb?100*cb/mb:0);
+              }' target/site/jacoco/jacoco.csv
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Publicar informes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-reports
+          path: |
+            erp/target/site/jacoco/
+            erp/target/surefire-reports/
+          if-no-files-found: ignore
+          retention-days: 14
