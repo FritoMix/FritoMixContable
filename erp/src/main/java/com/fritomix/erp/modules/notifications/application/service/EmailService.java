@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -22,11 +23,20 @@ public class EmailService {
 
     private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
+    private static final List<String> DEFAULT_DOTENV_LOCATIONS = List.of(
+            ".env",
+            "erp/.env",
+            Paths.get("").toAbsolutePath() + "/.env",
+            Paths.get("").toAbsolutePath() + "/../.env");
+
     private final JavaMailSender mailSender;
     private final RestClient restClient;
 
     private final String brevoApiKey;
     private final String mailFrom;
+
+    /** Ubicaciones candidatas del .env local. Seam de test para no depender del disco real. */
+    List<String> dotenvLocations = DEFAULT_DOTENV_LOCATIONS;
 
     public EmailService(JavaMailSender mailSender,
                         @Value("${mail.api-key:}") String brevoApiKey,
@@ -198,9 +208,7 @@ public class EmailService {
     }
 
     private String readDotenvValue(String envKey) {
-        for (String location : new String[]{".env", "erp/.env",
-                Paths.get("").toAbsolutePath() + "/.env",
-                Paths.get("").toAbsolutePath() + "/../.env"}) {
+        for (String location : dotenvLocations) {
             Path path = Paths.get(location);
             if (!Files.exists(path)) {
                 continue;
