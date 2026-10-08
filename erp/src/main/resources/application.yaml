@@ -67,3 +67,18 @@ management:
   health:
     mail:
       enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ERP FritoMix
+    description: Sistema de contabilidad, pedidos y despachos
+    version: ${APP_VERSION:dev}
