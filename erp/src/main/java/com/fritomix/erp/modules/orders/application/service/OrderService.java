@@ -221,6 +221,26 @@ public class OrderService {
         return mapper.toResponse(order);
     }
 
+    @Transactional
+    public List<OrderResponse> updateTipoPedido(List<Long> orderIds, String tipoPedido) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            throw new IllegalArgumentException("Debes seleccionar al menos un pedido.");
+        }
+        String tipo = tipoPedido != null ? tipoPedido.trim().toLowerCase() : "";
+        if (!"pedido_unico".equals(tipo) && !"pedido_multipedido".equals(tipo)) {
+            throw new IllegalArgumentException("tipo_pedido inválido. Debe ser 'pedido_unico' o 'pedido_multipedido'.");
+        }
+        List<Order> orders = orderRepository.findAllById(orderIds);
+        if (orders.isEmpty()) {
+            throw new ResourceNotFoundException("No se encontraron pedidos con los IDs especificados.");
+        }
+        for (Order o : orders) {
+            o.setTipoPedido(tipo);
+        }
+        List<Order> saved = orderRepository.saveAll(orders);
+        return saved.stream().map(mapper::toResponse).toList();
+    }
+
     private Long currentUserId() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof JwtUserInfo userInfo) {

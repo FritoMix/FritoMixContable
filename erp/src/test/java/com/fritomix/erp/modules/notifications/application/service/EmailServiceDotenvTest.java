@@ -1,24 +1,55 @@
 package com.fritomix.erp.modules.notifications.application.service;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mail.javamail.JavaMailSender;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 
 class EmailServiceDotenvTest {
 
+    @TempDir
+    Path tempDir;
+
     @Test
-    void resolutesBrevoCredentialsFromDotenvWhenNotConfigured() {
+    void resuelveCredencialesDesdeElDotenvIndicado() throws IOException {
+        Path dotenv = tempDir.resolve(".env");
+        Files.writeString(dotenv, """
+                # credenciales de prueba
+                MAIL_API_KEY=test-api-key
+                MAIL_FROM=noreply@fritomix.test
+                """);
+
         EmailService service = new EmailService(mock(JavaMailSender.class), "", "");
+        service.dotenvLocations = List.of(dotenv.toString());
 
-        String apiKey = service.resolveFromDotenv("MAIL_API_KEY", "");
-        String from = service.resolveFromDotenv("MAIL_FROM", "");
+        assertEquals("test-api-key", service.resolveFromDotenv("MAIL_API_KEY", ""));
+        assertEquals("noreply@fritomix.test", service.resolveFromDotenv("MAIL_FROM", ""));
+    }
 
-        assertNotNull(apiKey, "MAIL_API_KEY debe resolverse desde .env");
-        assertFalse(apiKey.isBlank(), "MAIL_API_KEY no debe estar vacía");
-        assertNotNull(from, "MAIL_FROM debe resolverse desde .env");
-        assertFalse(from.isBlank(), "MAIL_FROM no debe estar vacía");
+    @Test
+    void elValorConfiguradoTienePrioridadSobreElDotenv() throws IOException {
+        Path dotenv = tempDir.resolve(".env");
+        Files.writeString(dotenv, "MAIL_API_KEY=desde-dotenv\n");
+
+        EmailService service = new EmailService(mock(JavaMailSender.class), "", "");
+        service.dotenvLocations = List.of(dotenv.toString());
+
+        assertEquals("desde-config", service.resolveFromDotenv("MAIL_API_KEY", "desde-config"));
+    }
+
+    @Test
+    void devuelveNullSiNoHayDotenvNiValorConfigurado() {
+        EmailService service = new EmailService(mock(JavaMailSender.class), "", "");
+        service.dotenvLocations = List.of(tempDir.resolve("inexistente.env").toString());
+
+        assertNull(service.resolveFromDotenv("MAIL_API_KEY", ""));
     }
 }

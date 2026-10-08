@@ -12,7 +12,13 @@ import java.time.LocalDateTime;
 
 public class LoginRateLimitFilter extends OncePerRequestFilter {
 
-    private static final String LOGIN_PATH = "/api/v1/auth/login";
+    /**
+     * Todo lo que vive bajo {@code /api/v1/auth/} expone operaciones costosas o
+     * adivinables: login, refresh, forgot-password, verify-reset-code y
+     * reset-password. Sin límite, un atacante podía fuerza-brutar el código de
+     * 6 dígitos o provocar consumo de CPU ilimitado con intentos de BCrypt.
+     */
+    private static final String AUTH_PATH_PREFIX = "/api/v1/auth/";
 
     private final FixedWindowRateLimiter rateLimiter;
 
@@ -22,16 +28,18 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !(request.getRequestURI().startsWith(LOGIN_PATH)
-                && "POST".equalsIgnoreCase(request.getMethod()));
+        return !("POST".equalsIgnoreCase(request.getMethod())
+                && request.getRequestURI().startsWith(AUTH_PATH_PREFIX));
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String clientIp = resolveClientIp(request);
-        long retryAfterSeconds = rateLimiter.retryAfterSeconds(clientIp);
+        // Bucket por endpoint e IP: que /login se sature no debe impedir /refresh,
+        // y viceversa. Cada endpoint sigue quedando limitado individualmente.
+        String key = request.getRequestURI() + "|" + resolveClientIp(request);
+        long retryAfterSeconds = rateLimiter.retryAfterSeconds(key);
         if (retryAfterSeconds > 0) {
             response.setStatus(429);
             response.setContentType("application/json");
@@ -39,7 +47,7 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
             response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
             response.getWriter().write(
                     "{\"timestamp\":\"" + LocalDateTime.now()
-                            + "\",\"status\":429,\"error\":\"Demasiados intentos de inicio de sesión. Intenta de nuevo en "
+                            + "\",\"status\":429,\"error\":\"Demasiadas solicitudes. Intenta de nuevo en "
                             + retryAfterSeconds + " segundos.\"}");
             return;
         }

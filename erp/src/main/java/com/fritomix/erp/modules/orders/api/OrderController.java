@@ -69,6 +69,12 @@ public class OrderController {
         return ResponseEntity.ok(orderService.updateProductionStatus(id, status));
     }
 
+    @PutMapping("/tipo-pedido")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ORDERS_EDIT','ROLE_COORDINADOR','ROLE_ADMIN')")
+    public ResponseEntity<List<OrderResponse>> updateTipoPedido(@Valid @RequestBody com.fritomix.erp.modules.orders.application.dto.request.UpdateOrderTipoPedidoRequest request) {
+        return ResponseEntity.ok(orderService.updateTipoPedido(request.orderIds(), request.tipoPedido()));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('PERMISSION_ORDERS_DELETE')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {

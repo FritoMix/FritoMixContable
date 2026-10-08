@@ -32,6 +32,9 @@ public class Product {
     @Column(length = 250)
     private String description;
 
+    @Column(columnDefinition = "TEXT")
+    private String image;
+
     @Column(nullable = false, length = 30)
     private String unit;
 
