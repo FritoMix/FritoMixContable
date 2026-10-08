@@ -26,6 +26,8 @@ import com.fritomix.erp.modules.products.domain.repository.ProductRepository;
 import com.fritomix.erp.modules.vehicles.domain.entity.Vehicle;
 import com.fritomix.erp.modules.vehicles.domain.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,18 +35,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class DispatchService {
+
+    private static final Logger log = LoggerFactory.getLogger(DispatchService.class);
 
     private final DispatchRepository dispatchRepository;
     private final OrderRepository orderRepository;
@@ -54,41 +57,29 @@ public class DispatchService {
     private final DispatchMapper mapper;
     private final DispatchNotifier dispatchNotifier;
     private final UserRepository userRepository;
-    private final EntityManager em;
-
-    private void saveFacturasPorPedido(Long dispatchId, List<DispatchRequest.OrderFacturaRequest> orderFacturas) {
-        if (orderFacturas == null || orderFacturas.isEmpty()) return;
-        for (DispatchRequest.OrderFacturaRequest of : orderFacturas) {
-            if (of.orderId() != null) {
-                em.createNativeQuery("UPDATE dispatch_orders SET numero_factura = :numeroFactura WHERE dispatch_id = :dispatchId AND order_id = :orderId")
-                        .setParameter("numeroFactura", of.numeroFactura())
-                        .setParameter("dispatchId", dispatchId)
-                        .setParameter("orderId", of.orderId())
-                        .executeUpdate();
-            }
-        }
-    }
-
-    private Map<Long, String> loadFacturasPorPedido(Long dispatchId) {
-        Map<Long, String> result = new HashMap<>();
-        if (dispatchId == null) return result;
-        @SuppressWarnings("unchecked")
-        List<Object[]> rows = em.createNativeQuery("SELECT order_id, numero_factura FROM dispatch_orders WHERE dispatch_id = :dispatchId")
-                .setParameter("dispatchId", dispatchId)
-                .getResultList();
-        for (Object[] row : rows) {
-            if (row[0] != null) {
-                Long orderId = ((Number) row[0]).longValue();
-                String factura = (String) row[1];
-                result.put(orderId, factura);
-            }
-        }
-        return result;
-    }
+    private final DispatchFacturaStore facturaStore;
 
     private DispatchResponse toResponseWithFacturas(Dispatch dispatch) {
-        dispatch.setFacturasPorPedido(loadFacturasPorPedido(dispatch.getId()));
+        dispatch.setFacturasPorPedido(facturaStore.loadFacturas(dispatch.getId()));
         return mapper.toResponse(dispatch);
+    }
+
+    /**
+     * Converts an id page into a full response page, fetching entities in a single
+     * batch and mapping them with their facturas attached.
+     */
+    private PageResponse<DispatchResponse> toPageResponse(Page<Long> ids) {
+        if (ids.isEmpty()) {
+            return PageResponse.of(List.of(), ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
+        }
+        Map<Long, Dispatch> byId = dispatchRepository.findAllWithFetchByIds(ids.getContent()).stream()
+                .collect(Collectors.toMap(Dispatch::getId, d -> d));
+        List<DispatchResponse> content = ids.getContent().stream()
+                .map(byId::get)
+                .filter(Objects::nonNull)
+                .map(this::toResponseWithFacturas)
+                .toList();
+        return PageResponse.of(content, ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
     }
 
     @Transactional(readOnly = true)
@@ -98,17 +89,7 @@ public class DispatchService {
         Page<Long> ids = (estados == null)
                 ? dispatchRepository.findIds(term, pageable)
                 : dispatchRepository.findIdsByStatuses(term, estados, pageable);
-        if (ids.isEmpty()) {
-            return PageResponse.of(List.of(), ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
-        }
-        Map<Long, Dispatch> byId = dispatchRepository.findAllWithFetchByIds(ids.getContent()).stream()
-                .collect(Collectors.toMap(Dispatch::getId, d -> d));
-        List<DispatchResponse> content = ids.getContent().stream()
-                .map(byId::get)
-                .filter(java.util.Objects::nonNull)
-                .map(this::toResponseWithFacturas)
-                .toList();
-        return PageResponse.of(content, ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
+        return toPageResponse(ids);
     }
 
     @Transactional(readOnly = true)
@@ -123,17 +104,7 @@ public class DispatchService {
         String term = StringUtils.hasText(search) ? "%" + search.trim() + "%" : null;
         Long userId = currentUserId();
         Page<Long> ids = dispatchRepository.findAssignedIds(term, userId, pageable);
-        if (ids.isEmpty()) {
-            return PageResponse.of(List.of(), ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
-        }
-        Map<Long, Dispatch> byId = dispatchRepository.findAllWithFetchByIds(ids.getContent()).stream()
-                .collect(Collectors.toMap(Dispatch::getId, d -> d));
-        List<DispatchResponse> content = ids.getContent().stream()
-                .map(byId::get)
-                .filter(java.util.Objects::nonNull)
-                .map(this::toResponseWithFacturas)
-                .toList();
-        return PageResponse.of(content, ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
+        return toPageResponse(ids);
     }
 
     @Transactional(readOnly = true)
@@ -143,17 +114,7 @@ public class DispatchService {
             return PageResponse.of(List.of(), 0, pageable.getPageSize(), 0, 0);
         }
         Page<Long> ids = dispatchRepository.findIdsByUserId(userId, pageable);
-        if (ids.isEmpty()) {
-            return PageResponse.of(List.of(), ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
-        }
-        Map<Long, Dispatch> byId = dispatchRepository.findAllWithFetchByIds(ids.getContent()).stream()
-                .collect(Collectors.toMap(Dispatch::getId, d -> d));
-        List<DispatchResponse> content = ids.getContent().stream()
-                .map(byId::get)
-                .filter(java.util.Objects::nonNull)
-                .map(this::toResponseWithFacturas)
-                .toList();
-        return PageResponse.of(content, ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
+        return toPageResponse(ids);
     }
 
     @Transactional(readOnly = true)
@@ -163,17 +124,7 @@ public class DispatchService {
             return PageResponse.of(List.of(), 0, pageable.getPageSize(), 0, 0);
         }
         Page<Long> ids = dispatchRepository.findIdsByConfirmedByUserId(userId, pageable);
-        if (ids.isEmpty()) {
-            return PageResponse.of(List.of(), ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
-        }
-        Map<Long, Dispatch> byId = dispatchRepository.findAllWithFetchByIds(ids.getContent()).stream()
-                .collect(Collectors.toMap(Dispatch::getId, d -> d));
-        List<DispatchResponse> content = ids.getContent().stream()
-                .map(byId::get)
-                .filter(java.util.Objects::nonNull)
-                .map(this::toResponseWithFacturas)
-                .toList();
-        return PageResponse.of(content, ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
+        return toPageResponse(ids);
     }
 
     @Transactional(readOnly = true)
@@ -230,6 +181,7 @@ public class DispatchService {
         dispatch.setStatus(DispatchFlow.STATUS_CONDUCTOR_ASIGNADO);
         dispatch = dispatchRepository.save(dispatch);
 
+        log.info("Placa confirmada despacho id={} numero={} placa={} despachadorId={}", id, dispatch.getDispatchNumber(), placaNormalizada, despachador.getId());
         dispatchNotifier.notifyPlacaConfirmada(dispatch, despachador);
 
         return toResponseWithFacturas(dispatch);
@@ -271,6 +223,7 @@ public class DispatchService {
         dispatch.setStatus(DispatchFlow.STATUS_VEHICULO_ASIGNADO);
         dispatch = dispatchRepository.save(dispatch);
 
+        log.info("Placa asignada despacho id={} numero={} orderId={} placa={} userId={}", dispatch.getId(), dispatch.getDispatchNumber(), orderId, placaNormalizada, dispatch.getUserId());
         dispatchNotifier.notifyCreated(dispatch, orders, null, vehicle, dispatch.getUserId());
 
         return toResponseWithFacturas(dispatch);
@@ -356,7 +309,8 @@ public class DispatchService {
         dispatch.setCumplimiento(DispatchFlow.calcularCumplimiento(dispatch.getDetails()));
 
         dispatch = dispatchRepository.save(dispatch);
-        saveFacturasPorPedido(dispatch.getId(), request.orderFacturas());
+        facturaStore.saveFacturas(dispatch.getId(), request.orderFacturas());
+        log.info("Despacho creado id={} numero={} tipo={} status={} pedidos={}", dispatch.getId(), dispatch.getDispatchNumber(), tipoPedido, dispatch.getStatus(), orders.size());
         dispatchNotifier.notifyCreated(dispatch, orders, driver, vehicle, request.userId());
 
         return toResponseWithFacturas(dispatch);
@@ -443,8 +397,9 @@ public class DispatchService {
 
         dispatch = dispatchRepository.save(dispatch);
         if (request.orderFacturas() != null) {
-            saveFacturasPorPedido(dispatch.getId(), request.orderFacturas());
+            facturaStore.saveFacturas(dispatch.getId(), request.orderFacturas());
         }
+        log.info("Despacho actualizado id={} numero={} status={}", id, dispatch.getDispatchNumber(), dispatch.getStatus());
         return toResponseWithFacturas(dispatch);
     }
 
@@ -456,6 +411,7 @@ public class DispatchService {
             throw new IllegalArgumentException("No se puede eliminar un despacho en estado " + dispatch.getStatus());
         }
         dispatchRepository.delete(dispatch);
+        log.info("Despacho eliminado id={} numero={}", id, dispatch.getDispatchNumber());
     }
 
     @Transactional
@@ -469,6 +425,8 @@ public class DispatchService {
         DispatchFlow.validateTransition(dispatch.getStatus(), newStatus);
         dispatch.setStatus(newStatus);
         dispatch = dispatchRepository.save(dispatch);
+
+        log.info("Despacho id={} numero={} cambio de estado a {}", id, dispatch.getDispatchNumber(), newStatus);
 
         if ("DESPACHADO".equals(newStatus)) {
             dispatchNotifier.notifyDispatched(dispatch);
@@ -487,17 +445,7 @@ public class DispatchService {
     @Transactional(readOnly = true)
     public PageResponse<DispatchResponse> findByDateRange(LocalDateTime desde, LocalDateTime hasta, Pageable pageable) {
         Page<Long> ids = dispatchRepository.findIdsBetweenDates(desde, hasta, pageable);
-        if (ids.isEmpty()) {
-            return PageResponse.of(List.of(), ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
-        }
-        Map<Long, Dispatch> byId = dispatchRepository.findAllWithFetchByIds(ids.getContent()).stream()
-                .collect(Collectors.toMap(Dispatch::getId, d -> d));
-        List<DispatchResponse> content = ids.getContent().stream()
-                .map(byId::get)
-                .filter(java.util.Objects::nonNull)
-                .map(this::toResponseWithFacturas)
-                .toList();
-        return PageResponse.of(content, ids.getNumber(), ids.getSize(), ids.getTotalElements(), ids.getTotalPages());
+        return toPageResponse(ids);
     }
 
     private Product findProduct(Long productId) {
