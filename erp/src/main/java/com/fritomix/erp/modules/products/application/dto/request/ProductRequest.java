@@ -27,6 +27,7 @@ public record ProductRequest(
         String weight,
         Integer weightGrams,
         Boolean active,
+        String image,
         BigDecimal pesoUnidad,
         BigDecimal dimension,
         BigDecimal pesoTotalCargue

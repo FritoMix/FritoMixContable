@@ -4,6 +4,7 @@ import com.fritomix.erp.modules.notifications.application.dto.request.Notificati
 import com.fritomix.erp.modules.notifications.application.service.NotificationService;
 import com.fritomix.erp.modules.auth.application.dto.JwtUserInfo;
 import com.fritomix.erp.modules.reports.application.ReportsService;
+import com.fritomix.erp.modules.reports.application.dto.ReportsDTO;
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfPCell;

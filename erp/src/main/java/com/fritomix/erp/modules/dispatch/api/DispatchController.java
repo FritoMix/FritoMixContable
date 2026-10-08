@@ -8,6 +8,7 @@ import com.fritomix.erp.modules.dispatch.application.dto.response.DespachadorDto
 import com.fritomix.erp.modules.dispatch.application.dto.response.DispatchResponse;
 import com.fritomix.erp.modules.dispatch.application.service.DispatchService;
 import com.fritomix.erp.modules.orders.application.dto.response.OrderResponse;
+import com.fritomix.erp.modules.orders.application.service.OrderDispatchQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +29,7 @@ import java.util.List;
 public class DispatchController {
 
     private final DispatchService dispatchService;
+    private final OrderDispatchQueryService orderDispatchQueryService;
 
     @GetMapping
     @PreAuthorize("hasAuthority('PERMISSION_DISPATCHES_VIEW')")
@@ -49,7 +51,7 @@ public class DispatchController {
     @GetMapping("/listos-cargue")
     @PreAuthorize("hasAuthority('PERMISSION_DISPATCHES_VIEW')")
     public ResponseEntity<java.util.List<OrderResponse>> listosParaCargue() {
-        return ResponseEntity.ok(dispatchService.listosParaCargue());
+        return ResponseEntity.ok(orderDispatchQueryService.findReadyForDispatch());
     }
 
     @GetMapping("/mis-asignaciones")

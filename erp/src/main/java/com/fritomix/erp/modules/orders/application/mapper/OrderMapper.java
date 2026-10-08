@@ -89,7 +89,9 @@ public class OrderMapper {
                 dispatchDriverDocument = dispatch.getDriver().getDocument();
                 dispatchDriverPhone = dispatch.getDriver().getPhone();
             }
-            if (dispatch.getVehicle() != null) {
+            if (org.springframework.util.StringUtils.hasText(dispatch.getVehiclePlate())) {
+                dispatchVehicleNumber = dispatch.getVehiclePlate().trim();
+            } else if (dispatch.getVehicle() != null) {
                 dispatchVehicleNumber = dispatch.getVehicle().getVehicleNumber();
             }
             if (dispatch.getUserId() != null) {
@@ -137,6 +139,7 @@ public class OrderMapper {
                 .approvedAt(order.getApprovedAt())
                 .orderDate(order.getOrderDate())
                 .status(order.getStatus())
+                .tipoPedido(order.getTipoPedido() != null ? order.getTipoPedido() : "pedido_unico")
                 .total(order.getTotal())
                 .pesoTotalCargue(pesoTotalCargue)
                 .notes(order.getNotes())

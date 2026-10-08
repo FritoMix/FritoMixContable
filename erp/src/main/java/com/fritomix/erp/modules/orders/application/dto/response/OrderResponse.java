@@ -24,6 +24,7 @@ public record OrderResponse(
         LocalDateTime approvedAt,
         LocalDateTime orderDate,
         String status,
+        String tipoPedido,
         BigDecimal total,
         BigDecimal pesoTotalCargue,
         String notes,

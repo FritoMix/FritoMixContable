@@ -57,6 +57,7 @@ public class ProductService {
                 .presentation(request.presentation() != null ? request.presentation() : 0)
                 .weight(request.weight())
                 .weightGrams(request.weightGrams() != null ? request.weightGrams() : 0)
+                .image(request.image())
                 .pesoUnidad(request.pesoUnidad())
                 .dimension(request.dimension())
                 .pesoTotalCargue(request.pesoTotalCargue())
@@ -90,6 +91,7 @@ public class ProductService {
         if (request.presentation() != null) product.setPresentation(request.presentation());
         if (request.weight() != null) product.setWeight(request.weight());
         if (request.weightGrams() != null) product.setWeightGrams(request.weightGrams());
+        if (request.image() != null) product.setImage(request.image());
         if (request.pesoUnidad() != null) product.setPesoUnidad(request.pesoUnidad());
         if (request.dimension() != null) product.setDimension(request.dimension());
         if (request.pesoTotalCargue() != null) product.setPesoTotalCargue(request.pesoTotalCargue());
