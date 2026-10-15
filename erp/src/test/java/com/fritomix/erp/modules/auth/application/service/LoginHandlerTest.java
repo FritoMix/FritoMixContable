@@ -2,7 +2,6 @@ package com.fritomix.erp.modules.auth.application.service;
 
 import com.fritomix.erp.modules.auth.application.command.LoginCommand;
 import com.fritomix.erp.modules.auth.application.handler.LoginHandler;
-import com.fritomix.erp.modules.auth.domain.entity.RefreshToken;
 import com.fritomix.erp.modules.auth.domain.entity.Role;
 import com.fritomix.erp.modules.auth.domain.entity.User;
 import com.fritomix.erp.modules.auth.domain.repository.RefreshTokenRepository;

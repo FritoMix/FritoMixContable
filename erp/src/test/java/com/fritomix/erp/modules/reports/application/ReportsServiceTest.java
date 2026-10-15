@@ -22,6 +22,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -123,7 +125,7 @@ class ReportsServiceTest {
         Dispatch dispatch = Dispatch.builder()
                 .id(50L)
                 .dispatchNumber("DESP-50")
-                .orders(List.of(o1, o2))
+                .orders(new LinkedHashSet<>(List.of(o1, o2)))
                 .driver(driver)
                 .vehiclePlate("  ABC123 ")
                 .status("DESPACHADO")
@@ -157,7 +159,7 @@ class ReportsServiceTest {
     @Test
     void getDespachadosSinPedidosUsaListasVacias() {
         Vehicle vehicle = Vehicle.builder().id(9L).vehicleNumber("XYZ").build();
-        Dispatch dispatch = Dispatch.builder().id(51L).orders(List.of()).vehicle(vehicle).build();
+        Dispatch dispatch = Dispatch.builder().id(51L).orders(new HashSet<>(List.of())).vehicle(vehicle).build();
         when(dispatchRepository.findAllByStatusWithFetch("DESPACHADO")).thenReturn(List.of(dispatch));
 
         List<ReportsDTO.DispatchReportDTO> report = service.getDespachados();

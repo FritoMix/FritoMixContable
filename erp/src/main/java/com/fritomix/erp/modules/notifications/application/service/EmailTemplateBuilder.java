@@ -18,8 +18,6 @@ public class EmailTemplateBuilder {
 
     private static final String BRAND_COLOR      = "#0055FF";
     private static final String BRAND_DARK        = "#071938";
-    private static final String BRAND_ACCENT      = "#E8F0FF";
-    private static final String FOOTER_COLOR      = "#6B7280";
     private static final String SUCCESS_COLOR     = "#10B981";
     private static final String WARNING_COLOR     = "#F59E0B";
     private static final String DANGER_COLOR      = "#EF4444";

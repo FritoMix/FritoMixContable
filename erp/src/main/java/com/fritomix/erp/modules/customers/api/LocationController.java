@@ -2,8 +2,6 @@ package com.fritomix.erp.modules.customers.api;
 
 import com.fritomix.erp.modules.customers.application.dto.response.CityDTO;
 import com.fritomix.erp.modules.customers.application.dto.response.DepartmentDTO;
-import com.fritomix.erp.modules.customers.domain.entity.City;
-import com.fritomix.erp.modules.customers.domain.entity.Department;
 import com.fritomix.erp.modules.customers.domain.repository.CityRepository;
 import com.fritomix.erp.modules.customers.domain.repository.DepartmentRepository;
 import lombok.RequiredArgsConstructor;

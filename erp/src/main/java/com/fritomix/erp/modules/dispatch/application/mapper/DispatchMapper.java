@@ -32,7 +32,7 @@ public class DispatchMapper {
         List<DispatchDetail> details = dispatch.getDetails();
         if (details == null) details = Collections.emptyList();
 
-        List<Order> orders = dispatch.getOrders();
+        java.util.Collection<Order> orders = dispatch.getOrders();
         if (orders == null) orders = Collections.emptyList();
 
         List<OrderInfo> orderInfos = orders.stream()
@@ -45,7 +45,7 @@ public class DispatchMapper {
                         .build())
                 .collect(Collectors.toList());
 
-        Order firstOrder = orders.isEmpty() ? null : orders.get(0);
+        Order firstOrder = orders.stream().findFirst().orElse(null);
         BigDecimal pesoTotal = orders.stream()
                 .flatMap(o -> o.getDetails() == null ? Collections.<OrderDetail>emptyList().stream() : o.getDetails().stream())
                 .map(d -> {

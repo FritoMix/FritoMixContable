@@ -156,7 +156,7 @@ class NotificationServiceTest {
 
         service.markAllAsRead(1L);
 
-        ArgumentCaptor<List<Notification>> captor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<Notification>> captor = ArgumentCaptor.captor();
         verify(notificationRepository).saveAll(captor.capture());
         assertEquals(1, captor.getValue().size());
         assertTrue(captor.getValue().get(0).getIsRead());

@@ -68,7 +68,7 @@ public class PasswordResetService {
     @Transactional(readOnly = true)
     public void verifyCode(String email, String code) {
         String normalized = email.trim().toLowerCase();
-        PasswordResetCode resetCode = findValidCode(normalized, code);
+        findValidCode(normalized, code);
         // El código es válido; no se marca como usado hasta el reset efectivo.
         log.debug("Código verificado correctamente para {}", normalized);
     }

@@ -26,8 +26,6 @@ import com.fritomix.erp.modules.products.domain.entity.Product;
 import com.fritomix.erp.modules.products.domain.repository.ProductRepository;
 import com.fritomix.erp.modules.vehicles.domain.entity.Vehicle;
 import com.fritomix.erp.modules.vehicles.domain.repository.VehicleRepository;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.Query;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,8 +48,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -69,7 +65,7 @@ class DispatchServiceTest {
     @Mock private DispatchMapper mapper;
     @Mock private DispatchNotifier dispatchNotifier;
     @Mock private UserRepository userRepository;
-    @Mock private EntityManager em;
+    @Mock private DispatchFacturaStore facturaStore;
 
     @InjectMocks private DispatchService service;
 
@@ -105,10 +101,6 @@ class DispatchServiceTest {
         when(dispatchRepository.findIdsByStatuses(null, List.of("PENDIENTE"), pageable)).thenReturn(ids);
         Dispatch d = dispatch(1L, "PENDIENTE");
         when(dispatchRepository.findAllWithFetchByIds(List.of(1L))).thenReturn(List.of(d));
-        Query q = mock(Query.class);
-        when(em.createNativeQuery(anyString())).thenReturn(q);
-        when(q.setParameter(anyString(), any())).thenReturn(q);
-        when(q.getResultList()).thenReturn(List.of());
         when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
         PageResponse<DispatchResponse> result = service.findAll(null, List.of("PENDIENTE"), pageable);
@@ -120,10 +112,6 @@ class DispatchServiceTest {
     void findByIdEncontradoYNulo() {
         Dispatch d = dispatch(1L, "PENDIENTE");
         when(dispatchRepository.findById(1L)).thenReturn(Optional.of(d));
-        Query q = mock(Query.class);
-        when(em.createNativeQuery(anyString())).thenReturn(q);
-        when(q.setParameter(anyString(), anyLong())).thenReturn(q);
-        when(q.getResultList()).thenReturn(List.of());
         when(mapper.toResponse(d)).thenReturn(mock(DispatchResponse.class));
 
         assertNotNull(service.findById(1L));
@@ -147,11 +135,6 @@ class DispatchServiceTest {
         when(dispatchRepository.findAssignedIds(null, 5L, pageable)).thenReturn(ids);
         Dispatch d = dispatch(1L, "PENDIENTE");
         when(dispatchRepository.findAllWithFetchByIds(List.of(1L))).thenReturn(List.of(d));
-        Query q = mock(Query.class);
-        org.mockito.Mockito.lenient().when(em.createNativeQuery(anyString())).thenReturn(q);
-        org.mockito.Mockito.lenient().when(q.setParameter(anyString(), any())).thenReturn(q);
-        // return array of objects as returned by native query (Object[])
-        org.mockito.Mockito.lenient().when(q.getResultList()).thenReturn(java.util.Arrays.asList((Object)new Object[]{1L, "F-1"}));
         when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
         assertEquals(1, service.findAssignedToDriver(null, pageable).content().size());
@@ -194,10 +177,6 @@ class DispatchServiceTest {
                 new UsernamePasswordAuthenticationToken(
                         new JwtUserInfo(5L, "c@x.com", "ADMIN", "C", "L", List.of()), null, List.of()));
         when(dispatchRepository.save(any(Dispatch.class))).thenAnswer(inv -> inv.getArgument(0));
-        Query q = mock(Query.class);
-        when(em.createNativeQuery(anyString())).thenReturn(q);
-        when(q.setParameter(anyString(), any())).thenReturn(q);
-        when(q.getResultList()).thenReturn(List.of());
         when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
         assertThrows(IllegalArgumentException.class,
@@ -242,10 +221,6 @@ class DispatchServiceTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(
                         new JwtUserInfo(5L, "u@x.com", "ADMIN", "U", "N", List.of()), null, List.of()));
-        Query q = mock(Query.class);
-        when(em.createNativeQuery(anyString())).thenReturn(q);
-        when(q.setParameter(anyString(), any())).thenReturn(q);
-        when(q.getResultList()).thenReturn(List.of());
         when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
         DispatchResponse resp = service.asignarPlaca(1L, "abc123");
@@ -329,11 +304,6 @@ class DispatchServiceTest {
             dd.setId(10L);
             return dd;
         });
-Query q = mock(Query.class);
-        org.mockito.Mockito.lenient().when(em.createNativeQuery(anyString())).thenReturn(q);
-        org.mockito.Mockito.lenient().when(q.setParameter(anyString(), any())).thenReturn(q);
-        org.mockito.Mockito.lenient().when(q.executeUpdate()).thenReturn(0);
-        org.mockito.Mockito.lenient().when(q.getResultList()).thenReturn(List.of());
         when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
         assertNotNull(service.create(req));
@@ -358,10 +328,6 @@ Query q = mock(Query.class);
         when(dispatchRepository.findAllByOrderId(1L)).thenReturn(List.of());
         when(dispatchRepository.findAllByOrderId(2L)).thenReturn(List.of());
         when(dispatchRepository.save(any(Dispatch.class))).thenAnswer(inv -> inv.getArgument(0));
-        jakarta.persistence.Query q = org.mockito.Mockito.mock(jakarta.persistence.Query.class);
-        org.mockito.Mockito.lenient().when(em.createNativeQuery(anyString())).thenReturn(q);
-        org.mockito.Mockito.lenient().when(q.setParameter(anyString(), any())).thenReturn(q);
-        org.mockito.Mockito.lenient().when(q.getResultList()).thenReturn(java.util.Collections.emptyList());
         when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
         service.update(1L, req);
@@ -386,10 +352,6 @@ Query q = mock(Query.class);
         when(driverRepository.findById(1L)).thenReturn(Optional.of(Driver.builder().id(1L).build()));
         when(vehicleRepository.findById(1L)).thenReturn(Optional.of(Vehicle.builder().id(1L).build()));
         when(dispatchRepository.save(any(Dispatch.class))).thenAnswer(inv -> inv.getArgument(0));
-        jakarta.persistence.Query q = org.mockito.Mockito.mock(jakarta.persistence.Query.class);
-        org.mockito.Mockito.lenient().when(em.createNativeQuery(anyString())).thenReturn(q);
-        org.mockito.Mockito.lenient().when(q.setParameter(anyString(), any())).thenReturn(q);
-        org.mockito.Mockito.lenient().when(q.getResultList()).thenReturn(java.util.Collections.emptyList());
         when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
         service.update(1L, req);
@@ -417,10 +379,6 @@ Query q = mock(Query.class);
         Dispatch d = dispatch(1L, DispatchFlow.STATUS_CONDUCTOR_ASIGNADO);
         when(dispatchRepository.findById(1L)).thenReturn(Optional.of(d));
         when(dispatchRepository.save(any(Dispatch.class))).thenAnswer(inv -> inv.getArgument(0));
-        Query q = mock(Query.class);
-        when(em.createNativeQuery(anyString())).thenReturn(q);
-        when(q.setParameter(anyString(), any())).thenReturn(q);
-        when(q.getResultList()).thenReturn(List.of());
         when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
         service.updateStatus(1L, "despachado");
@@ -439,10 +397,6 @@ Query q = mock(Query.class);
     @Test
     void findHistoryByOrderIdRetornaLista() {
         when(dispatchRepository.findAllByOrderId(1L)).thenReturn(List.of(dispatch(1L, "DESPACHADO")));
-        Query q = mock(Query.class);
-        when(em.createNativeQuery(anyString())).thenReturn(q);
-        when(q.setParameter(anyString(), any())).thenReturn(q);
-        when(q.getResultList()).thenReturn(List.of());
         when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
         assertEquals(1, service.findHistoryByOrderId(1L).size());
@@ -461,10 +415,6 @@ Query q = mock(Query.class);
         PageImpl<Long> ids = new PageImpl<>(List.of(1L), pageable, 1);
         when(dispatchRepository.findIdsBetweenDates(desde, hasta, pageable)).thenReturn(ids);
         when(dispatchRepository.findAllWithFetchByIds(List.of(1L))).thenReturn(List.of(dispatch(1L, "PENDIENTE")));
-        Query q = mock(Query.class);
-        when(em.createNativeQuery(anyString())).thenReturn(q);
-        when(q.setParameter(anyString(), any())).thenReturn(q);
-        when(q.getResultList()).thenReturn(List.of());
         when(mapper.toResponse(any(Dispatch.class))).thenReturn(mock(DispatchResponse.class));
 
         assertEquals(1, service.findByDateRange(desde, hasta, pageable).content().size());

@@ -19,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -78,7 +79,7 @@ class DispatchMapperTest {
     @Test
     void calculaPesoYDimensionConEscalaDos() {
         Order order = order(1L, product(1L, "2.5", "1.5"), "3");
-        Dispatch dispatch = Dispatch.builder().orders(List.of(order)).build();
+        Dispatch dispatch = Dispatch.builder().orders(new HashSet<>(List.of(order))).build();
 
         DispatchResponse response = mapper.toResponse(dispatch);
 
@@ -91,7 +92,7 @@ class DispatchMapperTest {
     void mapeaOrderInfoConFacturaYPrimerPedido() {
         Order order = order(1L, product(1L, "2", "1"), "3");
         Dispatch dispatch = Dispatch.builder()
-                .orders(List.of(order))
+                .orders(new HashSet<>(List.of(order)))
                 .facturasPorPedido(Map.of(1L, "FAC-1"))
                 .build();
 
