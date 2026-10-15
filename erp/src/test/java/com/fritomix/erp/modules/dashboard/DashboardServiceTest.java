@@ -32,7 +32,6 @@ class DashboardServiceTest {
         return q;
     }
 
-    @SuppressWarnings("unchecked")
     private Query listQuery(Object[][] rows) {
         Query q = mock(Query.class);
         when(q.getResultList()).thenReturn(List.of(rows));

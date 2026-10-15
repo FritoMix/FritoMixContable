@@ -100,4 +100,16 @@ class JwtServiceTest {
 
         assertEquals("abc.def.ghi", service.extractToken(request));
     }
+
+    @Test
+    void extractTokenConBearerIncompletoDevuelveNull() {
+        when(request.getHeader("Authorization")).thenReturn("Bearer");
+        assertNull(service.extractToken(request));
+
+        when(request.getHeader("Authorization")).thenReturn("Bearer ");
+        assertNull(service.extractToken(request));
+
+        when(request.getHeader("Authorization")).thenReturn("Bearer    ");
+        assertNull(service.extractToken(request));
+    }
 }

@@ -154,13 +154,14 @@ public class JwtService {
      * ============================================================
      */
 
-    public String extractToken(HttpServletRequest request){
+    public String extractToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
 
-        if (header == null || !header.startsWith("Bearer")) {
+        if (header == null || !header.startsWith("Bearer ") || header.length() <= 7) {
             return null;
         }
-        return  header.substring(7);
+        String token = header.substring(7).trim();
+        return token.isEmpty() ? null : token;
     }
 
 }
