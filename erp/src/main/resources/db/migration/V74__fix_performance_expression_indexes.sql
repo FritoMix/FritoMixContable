@@ -1,5 +1,4 @@
--- pg_trgm se crea como superusuario en docker/postgres/init/01-security-roles.sh
-
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 DROP INDEX IF EXISTS idx_customers_business_name_trgm;
 DROP INDEX IF EXISTS idx_customers_document_trgm;
