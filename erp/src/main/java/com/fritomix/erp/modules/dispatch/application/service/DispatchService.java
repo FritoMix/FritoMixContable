@@ -25,6 +25,7 @@ import com.fritomix.erp.modules.products.domain.entity.Product;
 import com.fritomix.erp.modules.products.domain.repository.ProductRepository;
 import com.fritomix.erp.modules.vehicles.domain.entity.Vehicle;
 import com.fritomix.erp.modules.vehicles.domain.repository.VehicleRepository;
+import com.fritomix.erp.modules.camaras.application.service.CamaraService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -58,6 +60,7 @@ public class DispatchService {
     private final DispatchNotifier dispatchNotifier;
     private final UserRepository userRepository;
     private final DispatchFacturaStore facturaStore;
+    private final CamaraService camaraService;
 
     private DispatchResponse toResponseWithFacturas(Dispatch dispatch) {
         dispatch.setFacturasPorPedido(facturaStore.loadFacturas(dispatch.getId()));
@@ -184,6 +187,12 @@ public class DispatchService {
         log.info("Placa confirmada despacho id={} numero={} placa={} despachadorId={}", id, dispatch.getDispatchNumber(), placaNormalizada, despachador.getId());
         dispatchNotifier.notifyPlacaConfirmada(dispatch, despachador);
 
+        try {
+            camaraService.crearVerificacionParaDispatch(dispatch, null);
+        } catch (Exception e) {
+            log.error("Error al inicializar verificación de cámaras para despacho id={}", dispatch.getId(), e);
+        }
+
         return toResponseWithFacturas(dispatch);
     }
 
@@ -208,7 +217,7 @@ public class DispatchService {
         List<Order> orders = new ArrayList<>(List.of(order));
         Dispatch dispatch = Dispatch.builder()
                 .tipoPedido("pedido_unico")
-                .orders(orders)
+                .orders(new HashSet<>(orders))
                 .vehicle(vehicle)
                 .vehiclePlate(placaNormalizada)
                 .dispatchNumber(generarNumeroDespacho())
@@ -265,7 +274,7 @@ public class DispatchService {
 
         Dispatch dispatch = Dispatch.builder()
                 .tipoPedido(tipoPedido)
-                .orders(orders)
+                .orders(new HashSet<>(orders))
                 .driver(driver)
                 .vehicle(vehicle)
                 .vehiclePlate(vehicle != null ? vehicle.getVehicleNumber() : null)
@@ -398,6 +407,14 @@ public class DispatchService {
         dispatch = dispatchRepository.save(dispatch);
         if (request.orderFacturas() != null) {
             facturaStore.saveFacturas(dispatch.getId(), request.orderFacturas());
+        }
+        // Sincronizar detalles en la ficha de cámaras si ya fue creada y hay nuevos productos
+        if (request.details() != null && !request.details().isEmpty()) {
+            try {
+                camaraService.sincronizarDetallesConDispatch(dispatch);
+            } catch (Exception e) {
+                log.warn("No se pudo sincronizar detalles de cámaras para dispatch id={}: {}", dispatch.getId(), e.getMessage());
+            }
         }
         log.info("Despacho actualizado id={} numero={} status={}", id, dispatch.getDispatchNumber(), dispatch.getStatus());
         return toResponseWithFacturas(dispatch);

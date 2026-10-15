@@ -1,16 +1,6 @@
 package com.fritomix.erp.modules.users.application.service;
 
-import com.fritomix.erp.common.dto.PageResponse;
-import com.fritomix.erp.modules.auth.domain.entity.Role;
 import com.fritomix.erp.modules.auth.domain.entity.User;
-import com.fritomix.erp.modules.auth.domain.repository.RoleRepository;
-import com.fritomix.erp.modules.auth.domain.repository.UserRepository;
-import com.fritomix.erp.modules.auth.exception.UserNotFoundException;
-import com.fritomix.erp.modules.settings.application.service.SettingService;
-import com.fritomix.erp.modules.users.application.dto.request.CreateUserRequest;
-import com.fritomix.erp.modules.users.application.dto.request.UpdateUserRequest;
-import com.fritomix.erp.modules.users.application.dto.response.UserResponse;
-import com.fritomix.erp.modules.users.application.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,10 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 

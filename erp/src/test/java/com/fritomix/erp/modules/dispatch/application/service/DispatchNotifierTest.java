@@ -16,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,7 +46,7 @@ class DispatchNotifierTest {
 
     private Dispatch dispatch() {
         return Dispatch.builder().id(1L).dispatchNumber("DES-1").vehiclePlate("ABC123")
-                .orders(List.of(Order.builder().id(1L).orderNumber("PED-1").build()))
+                .orders(new HashSet<>(List.of(Order.builder().id(1L).orderNumber("PED-1").build())))
                 .build();
     }
 

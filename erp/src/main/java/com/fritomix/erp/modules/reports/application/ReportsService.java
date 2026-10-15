@@ -121,7 +121,7 @@ public class ReportsService {
             Map<Long, List<OrderDetail>> detailsByOrder,
             Map<Long, CustomerAddress> addressByCustomer
     ) {
-        List<Order> orders = dispatch.getOrders();
+        java.util.Collection<Order> orders = dispatch.getOrders();
         if (orders == null) orders = List.of();
 
         List<String> orderNumbers = orders.stream()
@@ -134,7 +134,7 @@ public class ReportsService {
                 .distinct()
                 .collect(Collectors.toList());
 
-        Order firstOrder = orders.isEmpty() ? null : orders.get(0);
+        Order firstOrder = orders.stream().findFirst().orElse(null);
         String city = null;
         String address = null;
         if (firstOrder != null && firstOrder.getCustomer() != null) {
