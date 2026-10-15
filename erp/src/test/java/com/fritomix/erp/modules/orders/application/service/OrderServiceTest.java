@@ -6,7 +6,6 @@ import com.fritomix.erp.modules.auth.application.dto.JwtUserInfo;
 import com.fritomix.erp.modules.auth.domain.entity.User;
 import com.fritomix.erp.modules.auth.domain.repository.UserRepository;
 import com.fritomix.erp.modules.customers.domain.entity.Customer;
-import com.fritomix.erp.modules.customers.domain.entity.CustomerAddress;
 import com.fritomix.erp.modules.customers.domain.repository.CustomerAddressRepository;
 import com.fritomix.erp.modules.customers.domain.repository.CustomerRepository;
 import com.fritomix.erp.modules.dispatch.domain.repository.DispatchRepository;
@@ -28,7 +27,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,8 +34,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 

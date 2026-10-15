@@ -20,6 +20,10 @@ public class User extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
@@ -37,21 +41,26 @@ public class User extends BaseEntity {
     private String password;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean enabled = true;
 
     @Column(name = "account_non_locked", nullable = false)
+    @Builder.Default
     private Boolean accountNonLocked = true;
 
     @Column(name = "failed_attempts", nullable = false)
+    @Builder.Default
     private Integer failedAttempts = 0;
 
     @Column(name = "locked_until")
     private LocalDateTime lockedUntil;
 
     @Column(name = "account_non_expired", nullable = false)
+    @Builder.Default
     private Boolean accountNonExpired = true;
 
     @Column(name = "credentials_non_expired", nullable = false)
+    @Builder.Default
     private Boolean credentialsNonExpired = true;
 
     @Column(name = "last_login")
