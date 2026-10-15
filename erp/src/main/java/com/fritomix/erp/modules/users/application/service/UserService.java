@@ -11,8 +11,6 @@ import com.fritomix.erp.modules.users.application.dto.request.CreateUserRequest;
 import com.fritomix.erp.modules.users.application.dto.request.UpdateUserRequest;
 import com.fritomix.erp.modules.users.application.dto.response.UserResponse;
 import com.fritomix.erp.modules.users.application.mapper.UserMapper;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,7 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.List;
 import java.util.regex.Pattern;
 
 @Service
