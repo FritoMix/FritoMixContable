@@ -13,9 +13,11 @@ management:
 spring:
 
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    # Render puede entregar la cadena como postgres:// o postgresql://; el
+    # DataSourceConfig la normaliza a jdbc:postgresql:// antes de crear Hikari.
+    url: ${SPRING_DATASOURCE_URL:${DB_URL:${DATABASE_URL:}}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:${DB_USER:}}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:}}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
